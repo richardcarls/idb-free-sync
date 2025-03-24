@@ -20,6 +20,10 @@ Storage providers implement `SyncTransport`, which lists, reads, writes,
 deletes, and counts JSON files grouped by store name. Each provider returns
 `SyncFileInfo` metadata for conflict comparison.
 
+## Available Transports
+
+- `NullTransport`: no-op sync provider
+
 ## Implementing a Transport
 
 Custom transports must implement every `SyncTransport` method, return
