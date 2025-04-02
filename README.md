@@ -22,6 +22,7 @@ deletes, and counts JSON files grouped by store name. Each provider returns
 
 ## Available Transports
 
+- `OPFSTransport`: browser Origin Private File System
 - `NullTransport`: no-op sync provider
 
 ## Implementing a Transport
