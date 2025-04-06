@@ -7,7 +7,13 @@ export class OPFSTransport implements SyncTransport {
   readonly scopes: string[] = [];
 
   async list(storeName: string): Promise<SyncFileInfo[]> {
-    const storeRoot = await this.getFolder(storeName);
+    let storeRoot: FileSystemDirectoryHandle;
+    try {
+      storeRoot = await this.getFolder(storeName);
+    } catch {
+      return [];
+    }
+
     const files: SyncFileInfo[] = [];
     for await (const [name, handle] of storeRoot.entries()) {
       if (handle.kind === 'file') {
@@ -20,6 +26,7 @@ export class OPFSTransport implements SyncTransport {
         });
       }
     }
+
     return files;
   }
 
@@ -28,7 +35,8 @@ export class OPFSTransport implements SyncTransport {
       const storeRoot = await this.getFolder(storeName);
       const handle = await storeRoot.getFileHandle(syncKey);
       const file = await handle.getFile();
-      return JSON.parse(await file.text()) as T;
+      const json = await file.text();
+      return JSON.parse(json) as T;
     } catch {
       return undefined;
     }
@@ -40,12 +48,16 @@ export class OPFSTransport implements SyncTransport {
     value: T,
   ): Promise<SyncFileInfo> {
     const storeRoot = await this.getFolder(storeName, true);
+
     const handle = await storeRoot.getFileHandle(syncKey, { create: true });
     const writable = await handle.createWritable();
-    await writable.write(
-      new Blob([JSON.stringify(value, null, 2)], { type: 'application/json' }),
-    );
+
+    const json = JSON.stringify(value, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+
+    await writable.write(blob);
     await writable.close();
+
     const file = await handle.getFile();
     return {
       id: syncKey,
@@ -66,7 +78,8 @@ export class OPFSTransport implements SyncTransport {
   }
 
   async count(storeName: string): Promise<number> {
-    return (await this.list(storeName)).length;
+    const items = await this.list(storeName);
+    return items.length;
   }
 
   private async getFolder(
