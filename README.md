@@ -14,6 +14,23 @@ yarn typecheck
 yarn build
 ```
 
+## Transport Contract
+
+Storage providers implement `SyncTransport`, which lists, reads, writes,
+deletes, and counts JSON files grouped by store name. Each provider returns
+`SyncFileInfo` metadata for conflict comparison.
+
+## Available Transports
+
+- `OPFSTransport`: browser Origin Private File System
+- `NullTransport`: no-op sync provider
+
+## Implementing a Transport
+
+Custom transports must implement every `SyncTransport` method, return
+`undefined` when `get` cannot find a value, and treat values as
+JSON-serializable data.
+
 ## License
 
 [MIT](./LICENSE)
