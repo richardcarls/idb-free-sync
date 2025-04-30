@@ -17,6 +17,18 @@ export interface SyncOptions {
   softDeleteField?: string;
 }
 
+export const defaultResolve: ResolveConflict = (local, remote) => {
+  if (remote.deleted) return 'delete';
+  if (!remote.modified) return 'keep-local';
+  const localMod = local['modified'] as Date | undefined;
+  if (!localMod) return 'keep-remote';
+  return localMod > remote.modified
+    ? 'keep-local'
+    : localMod < remote.modified
+      ? 'keep-remote'
+      : 'ignore';
+};
+
 function keyToSyncKey(key: string): string {
   return `${key}.json`;
 }
@@ -31,8 +43,8 @@ export async function syncStore(
   storeName: string,
   options?: SyncOptions,
 ): Promise<void> {
-  const resolve = options?.resolve;
-  if (!resolve) throw new Error('syncStore: resolve option is required');
+  const resolve = options?.resolve ?? defaultResolve;
+  const softDeleteField = options?.softDeleteField;
 
   const remoteItems = await transport.list(storeName);
 
@@ -81,7 +93,14 @@ export async function syncStore(
 
   for (const uuid of fromRemoteQueue) {
     const value = await transport.get(storeName, keyToSyncKey(uuid));
-    if (value !== undefined) await db.put(storeName, value);
+    if (value !== undefined) {
+      if (
+        softDeleteField &&
+        (value as Record<string, unknown>)[softDeleteField]
+      )
+        continue;
+      await db.put(storeName, value);
+    }
   }
   for (const uuid of toRemoteQueue) {
     const value = await db.get(storeName, uuid);
