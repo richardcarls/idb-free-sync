@@ -91,23 +91,30 @@ export async function syncStore(
     .map((r) => syncKeyToKey(r.syncKey));
   fromRemoteQueue.push(...newRemoteKeys);
 
-  for (const uuid of fromRemoteQueue) {
-    const value = await transport.get(storeName, keyToSyncKey(uuid));
-    if (value !== undefined) {
+  await Promise.allSettled([
+    ...fromRemoteQueue.map(async (uuid) => {
+      const value = await transport.get(storeName, keyToSyncKey(uuid));
+      if (value === undefined)
+        throw new Error(`Fetched value for ${uuid} was undefined.`);
       if (
         softDeleteField &&
         (value as Record<string, unknown>)[softDeleteField]
       )
-        continue;
-      await db.put(storeName, value);
-    }
-  }
-  for (const uuid of toRemoteQueue) {
-    const value = await db.get(storeName, uuid);
-    if (value !== undefined)
-      await transport.put(storeName, keyToSyncKey(uuid), value);
-  }
-  for (const uuid of deleteQueue) {
-    await transport.delete(storeName, keyToSyncKey(uuid), true);
-  }
+        return;
+      return db.put(storeName, value).catch((er) => console.error(er));
+    }),
+    ...toRemoteQueue.map(async (uuid) => {
+      const value = await db.get(storeName, uuid);
+      if (value === undefined)
+        throw new Error(`Local value for ${uuid} was undefined.`);
+      return transport
+        .put(storeName, keyToSyncKey(uuid), value)
+        .catch((er) => console.error(er));
+    }),
+    ...deleteQueue.map(async (uuid) =>
+      transport
+        .delete(storeName, keyToSyncKey(uuid), true)
+        .catch((er) => console.error(er)),
+    ),
+  ]);
 }
