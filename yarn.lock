@@ -938,10 +938,13 @@ __metadata:
   dependencies:
     "@commitlint/cli": "npm:^21.0.2"
     "@commitlint/config-conventional": "npm:^21.0.2"
+    idb: "npm:^8.0.0"
     prettier: "npm:^3.8.3"
     simple-git-hooks: "npm:^2.13.1"
     typescript: "npm:^5.3.3"
     vite: "npm:^6.0.0"
+  peerDependencies:
+    idb: ">=8"
   languageName: unknown
   linkType: soft
 
@@ -1003,6 +1006,13 @@ __metadata:
   version: 4.2.11
   resolution: "graceful-fs@npm:4.2.11"
   checksum: 10c0/386d011a553e02bc594ac2ca0bd6d9e4c22d7fa8cfbfc448a6d148c59ea881b092db9dbe3547ae4b88e55f1b01f7c4a2ecc53b310c042793e63aa44cf6c257f2
+  languageName: node
+  linkType: hard
+
+"idb@npm:^8.0.0":
+  version: 8.0.3
+  resolution: "idb@npm:8.0.3"
+  checksum: 10c0/421cd9a3281b7564528857031cc33fd9e95753f8191e483054cb25d1ceea7303a0d1462f4f69f5b41606f0f066156999e067478abf2460dfcf9cab80dae2a2b2
   languageName: node
   linkType: hard
 
