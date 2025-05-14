@@ -31,6 +31,7 @@ const RAW_RUNTIME_STATE =
           ["@commitlint/cli", "npm:21.0.2"],\
           ["@commitlint/config-conventional", "npm:21.0.2"],\
           ["free-sync", "workspace:."],\
+          ["idb", "npm:8.0.3"],\
           ["prettier", "npm:3.8.3"],\
           ["simple-git-hooks", "npm:2.13.1"],\
           ["typescript", "patch:typescript@npm%3A5.9.3#optional!builtin<compat/typescript>::version=5.9.3&hash=5786d5"],\
@@ -1120,6 +1121,7 @@ const RAW_RUNTIME_STATE =
           ["@commitlint/cli", "npm:21.0.2"],\
           ["@commitlint/config-conventional", "npm:21.0.2"],\
           ["free-sync", "workspace:."],\
+          ["idb", "npm:8.0.3"],\
           ["prettier", "npm:3.8.3"],\
           ["simple-git-hooks", "npm:2.13.1"],\
           ["typescript", "patch:typescript@npm%3A5.9.3#optional!builtin<compat/typescript>::version=5.9.3&hash=5786d5"],\
@@ -1182,6 +1184,15 @@ const RAW_RUNTIME_STATE =
         "packageLocation": "../../../../C:/Users/rick/AppData/Local/Yarn/Berry/cache/graceful-fs-npm-4.2.11-24bb648a68-10c0.zip/node_modules/graceful-fs/",\
         "packageDependencies": [\
           ["graceful-fs", "npm:4.2.11"]\
+        ],\
+        "linkType": "HARD"\
+      }]\
+    ]],\
+    ["idb", [\
+      ["npm:8.0.3", {\
+        "packageLocation": "../../../../C:/Users/rick/AppData/Local/Yarn/Berry/cache/idb-npm-8.0.3-e9b0a844f6-10c0.zip/node_modules/idb/",\
+        "packageDependencies": [\
+          ["idb", "npm:8.0.3"]\
         ],\
         "linkType": "HARD"\
       }]\
