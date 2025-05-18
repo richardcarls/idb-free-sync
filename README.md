@@ -38,6 +38,7 @@ resolver can return `keep-local`, `keep-remote`, `delete`, or `ignore`.
 
 - `OPFSTransport`: browser Origin Private File System
 - `NullTransport`: no-op sync provider
+- `GoogleDriveTransport`: Google Drive application data folder
 
 ## Implementing a Transport
 
