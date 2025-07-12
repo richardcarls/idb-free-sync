@@ -17,6 +17,8 @@
   "devDependencies": {
     "@commitlint/cli": "^21.0.2",
     "@commitlint/config-conventional": "^21.0.2",
+    "@types/gapi": "*",
+    "@types/gapi.client.drive-v3": "*",
     "idb": "^8.0.0",
     "prettier": "^3.8.3",
     "simple-git-hooks": "^2.13.1",

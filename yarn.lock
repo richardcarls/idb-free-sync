@@ -417,6 +417,26 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@maxim_mazurok/gapi.client.discovery-v1@npm:latest":
+  version: 0.5.20200806
+  resolution: "@maxim_mazurok/gapi.client.discovery-v1@npm:0.5.20200806"
+  dependencies:
+    "@types/gapi.client": "npm:*"
+    "@types/gapi.client.discovery-v1": "npm:*"
+  checksum: 10c0/33a06052a84c1b07bd887ac6bca53f676d36727b0d6316a74730c675bc0421122fbb4dee0a58c850b10d8e75295f5bba7c6fcedd52f31ba24034e86b9d31fc7f
+  languageName: node
+  linkType: hard
+
+"@maxim_mazurok/gapi.client.drive-v3@npm:latest":
+  version: 0.2.20260311
+  resolution: "@maxim_mazurok/gapi.client.drive-v3@npm:0.2.20260311"
+  dependencies:
+    "@types/gapi.client": "npm:*"
+    "@types/gapi.client.discovery-v1": "npm:*"
+  checksum: 10c0/202441ea8400467bd5ff607e1bc616fb3c2a4ccc42b35fc4c622e4ad9c0073e451528352d18f35f5208980cae3bc06d9a907c6c4ee992321bff9142e45e7b098
+  languageName: node
+  linkType: hard
+
 "@rollup/rollup-android-arm-eabi@npm:4.61.1":
   version: 4.61.1
   resolution: "@rollup/rollup-android-arm-eabi@npm:4.61.1"
@@ -612,6 +632,38 @@ __metadata:
   version: 1.0.9
   resolution: "@types/estree@npm:1.0.9"
   checksum: 10c0/3ad3286ca2988cd550dafb8f2ad599c8474868e954fa601a36655bdfefd8039f7c714b8c1c7f2ae219ffbd58bd4660e66fa7479a0120fc02d4777057d4865387
+  languageName: node
+  linkType: hard
+
+"@types/gapi.client.discovery-v1@npm:*":
+  version: 0.0.4
+  resolution: "@types/gapi.client.discovery-v1@npm:0.0.4"
+  dependencies:
+    "@maxim_mazurok/gapi.client.discovery-v1": "npm:latest"
+  checksum: 10c0/52df0216b67cd40b97de9334fbcca4be5eae47ec8fd8159d5e2a9e0bc3ad4ea365ffde60f6ce9095e7082f68a884cade0e9c627e66284123e383d93ce8a2651d
+  languageName: node
+  linkType: hard
+
+"@types/gapi.client.drive-v3@npm:*":
+  version: 0.0.5
+  resolution: "@types/gapi.client.drive-v3@npm:0.0.5"
+  dependencies:
+    "@maxim_mazurok/gapi.client.drive-v3": "npm:latest"
+  checksum: 10c0/5a4fa955a8769c60c84cf6395635e2f82d9d8072799960d924a3aeb5d5cf8241bc825cd46372c4bd9c1f48573412feb47a4d485ea5ee34844e2abbd5e71d020a
+  languageName: node
+  linkType: hard
+
+"@types/gapi.client@npm:*":
+  version: 1.0.8
+  resolution: "@types/gapi.client@npm:1.0.8"
+  checksum: 10c0/5b9a26ad4ae7d915c7711ee0084dddcc9d143c9f8ff4b7aba8811f8e94af0140639e9093ada17f8146c3a07f9a189c72fb9ae29d4c8108e330a65de3319a32f8
+  languageName: node
+  linkType: hard
+
+"@types/gapi@npm:*":
+  version: 0.0.47
+  resolution: "@types/gapi@npm:0.0.47"
+  checksum: 10c0/014d7326b6182d260c33ae5b7317d7c0271263dde83b9d24fccd78481dce8877f0ec7a110467a626bf9e1c0b73f2b1935c31f5ef66f71f1328ae0926f6e8b0fe
   languageName: node
   linkType: hard
 
@@ -938,6 +990,8 @@ __metadata:
   dependencies:
     "@commitlint/cli": "npm:^21.0.2"
     "@commitlint/config-conventional": "npm:^21.0.2"
+    "@types/gapi": "npm:*"
+    "@types/gapi.client.drive-v3": "npm:*"
     idb: "npm:^8.0.0"
     prettier: "npm:^3.8.3"
     simple-git-hooks: "npm:^2.13.1"

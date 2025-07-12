@@ -30,6 +30,8 @@ const RAW_RUNTIME_STATE =
         "packageDependencies": [\
           ["@commitlint/cli", "npm:21.0.2"],\
           ["@commitlint/config-conventional", "npm:21.0.2"],\
+          ["@types/gapi", "npm:0.0.47"],\
+          ["@types/gapi.client.drive-v3", "npm:0.0.5"],\
           ["free-sync", "workspace:."],\
           ["idb", "npm:8.0.3"],\
           ["prettier", "npm:3.8.3"],\
@@ -536,6 +538,28 @@ const RAW_RUNTIME_STATE =
         "linkType": "HARD"\
       }]\
     ]],\
+    ["@maxim_mazurok/gapi.client.discovery-v1", [\
+      ["npm:0.5.20200806", {\
+        "packageLocation": "../../../../C:/Users/rick/AppData/Local/Yarn/Berry/cache/@maxim_mazurok-gapi.client.discovery-v1-npm-0.5.20200806-93eca5b69e-10c0.zip/node_modules/@maxim_mazurok/gapi.client.discovery-v1/",\
+        "packageDependencies": [\
+          ["@maxim_mazurok/gapi.client.discovery-v1", "npm:0.5.20200806"],\
+          ["@types/gapi.client", "npm:1.0.8"],\
+          ["@types/gapi.client.discovery-v1", "npm:0.0.4"]\
+        ],\
+        "linkType": "HARD"\
+      }]\
+    ]],\
+    ["@maxim_mazurok/gapi.client.drive-v3", [\
+      ["npm:0.2.20260311", {\
+        "packageLocation": "../../../../C:/Users/rick/AppData/Local/Yarn/Berry/cache/@maxim_mazurok-gapi.client.drive-v3-npm-0.2.20260311-9688f47ee0-10c0.zip/node_modules/@maxim_mazurok/gapi.client.drive-v3/",\
+        "packageDependencies": [\
+          ["@maxim_mazurok/gapi.client.drive-v3", "npm:0.2.20260311"],\
+          ["@types/gapi.client", "npm:1.0.8"],\
+          ["@types/gapi.client.discovery-v1", "npm:0.0.4"]\
+        ],\
+        "linkType": "HARD"\
+      }]\
+    ]],\
     ["@rollup/rollup-android-arm-eabi", [\
       ["npm:4.61.1", {\
         "packageLocation": "./.yarn/unplugged/@rollup-rollup-android-arm-eabi-npm-4.61.1-23d3ed1c5b/node_modules/@rollup/rollup-android-arm-eabi/",\
@@ -785,6 +809,44 @@ const RAW_RUNTIME_STATE =
         "packageLocation": "../../../../C:/Users/rick/AppData/Local/Yarn/Berry/cache/@types-estree-npm-1.0.9-63428f58ff-10c0.zip/node_modules/@types/estree/",\
         "packageDependencies": [\
           ["@types/estree", "npm:1.0.9"]\
+        ],\
+        "linkType": "HARD"\
+      }]\
+    ]],\
+    ["@types/gapi", [\
+      ["npm:0.0.47", {\
+        "packageLocation": "../../../../C:/Users/rick/AppData/Local/Yarn/Berry/cache/@types-gapi-npm-0.0.47-e25311ceb0-10c0.zip/node_modules/@types/gapi/",\
+        "packageDependencies": [\
+          ["@types/gapi", "npm:0.0.47"]\
+        ],\
+        "linkType": "HARD"\
+      }]\
+    ]],\
+    ["@types/gapi.client", [\
+      ["npm:1.0.8", {\
+        "packageLocation": "../../../../C:/Users/rick/AppData/Local/Yarn/Berry/cache/@types-gapi.client-npm-1.0.8-40175e07e7-10c0.zip/node_modules/@types/gapi.client/",\
+        "packageDependencies": [\
+          ["@types/gapi.client", "npm:1.0.8"]\
+        ],\
+        "linkType": "HARD"\
+      }]\
+    ]],\
+    ["@types/gapi.client.discovery-v1", [\
+      ["npm:0.0.4", {\
+        "packageLocation": "../../../../C:/Users/rick/AppData/Local/Yarn/Berry/cache/@types-gapi.client.discovery-v1-npm-0.0.4-da690f7335-10c0.zip/node_modules/@types/gapi.client.discovery-v1/",\
+        "packageDependencies": [\
+          ["@maxim_mazurok/gapi.client.discovery-v1", "npm:0.5.20200806"],\
+          ["@types/gapi.client.discovery-v1", "npm:0.0.4"]\
+        ],\
+        "linkType": "HARD"\
+      }]\
+    ]],\
+    ["@types/gapi.client.drive-v3", [\
+      ["npm:0.0.5", {\
+        "packageLocation": "../../../../C:/Users/rick/AppData/Local/Yarn/Berry/cache/@types-gapi.client.drive-v3-npm-0.0.5-f00534868b-10c0.zip/node_modules/@types/gapi.client.drive-v3/",\
+        "packageDependencies": [\
+          ["@maxim_mazurok/gapi.client.drive-v3", "npm:0.2.20260311"],\
+          ["@types/gapi.client.drive-v3", "npm:0.0.5"]\
         ],\
         "linkType": "HARD"\
       }]\
@@ -1120,6 +1182,8 @@ const RAW_RUNTIME_STATE =
         "packageDependencies": [\
           ["@commitlint/cli", "npm:21.0.2"],\
           ["@commitlint/config-conventional", "npm:21.0.2"],\
+          ["@types/gapi", "npm:0.0.47"],\
+          ["@types/gapi.client.drive-v3", "npm:0.0.5"],\
           ["free-sync", "workspace:."],\
           ["idb", "npm:8.0.3"],\
           ["prettier", "npm:3.8.3"],\
