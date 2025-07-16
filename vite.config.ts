@@ -1,4 +1,5 @@
 import { defineConfig } from 'vite';
+import dts from 'vite-plugin-dts';
 
 export default defineConfig({
   cacheDir: '.yarn/.vite-cache',
@@ -9,5 +10,9 @@ export default defineConfig({
       fileName: 'free-sync',
       formats: ['es', 'cjs'],
     },
+    rollupOptions: {
+      external: ['idb'],
+    },
   },
+  plugins: [dts({ insertTypesEntry: true })],
 });
