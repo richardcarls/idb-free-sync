@@ -3,6 +3,16 @@
   "version": "0.0.1",
   "license": "MIT",
   "type": "module",
+  "main": "./dist/free-sync.cjs",
+  "module": "./dist/free-sync.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/free-sync.js",
+      "require": "./dist/free-sync.cjs"
+    }
+  },
   "scripts": {
     "build": "vite build",
     "typecheck": "tsc --noEmit",
@@ -17,11 +27,14 @@
   "devDependencies": {
     "@commitlint/cli": "^21.0.2",
     "@commitlint/config-conventional": "^21.0.2",
+    "@types/gapi": "*",
+    "@types/gapi.client.drive-v3": "*",
     "idb": "^8.0.0",
     "prettier": "^3.8.3",
     "simple-git-hooks": "^2.13.1",
     "typescript": "^5.3.3",
-    "vite": "^6.0.0"
+    "vite": "^6.0.0",
+    "vite-plugin-dts": "^4.0.0"
   },
   "packageManager": "yarn@4.14.1",
   "simple-git-hooks": {
