@@ -849,6 +849,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@types/google.accounts@npm:^0.0.18":
+  version: 0.0.18
+  resolution: "@types/google.accounts@npm:0.0.18"
+  checksum: 10c0/c8769e1061e6809ad6fcd613f8c08b22a428bab7b3385002151fba6fea4444aaee30aee3d033bb5c75ea5dccbd3af5e38d04811f8737a77c2997566dabc21a49
+  languageName: node
+  linkType: hard
+
 "@volar/language-core@npm:2.4.28, @volar/language-core@npm:~2.4.11":
   version: 2.4.28
   resolution: "@volar/language-core@npm:2.4.28"
@@ -1424,25 +1431,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"free-sync@workspace:.":
-  version: 0.0.0-use.local
-  resolution: "free-sync@workspace:."
-  dependencies:
-    "@commitlint/cli": "npm:^21.0.2"
-    "@commitlint/config-conventional": "npm:^21.0.2"
-    "@types/gapi": "npm:*"
-    "@types/gapi.client.drive-v3": "npm:*"
-    idb: "npm:^8.0.0"
-    prettier: "npm:^3.8.3"
-    simple-git-hooks: "npm:^2.13.1"
-    typescript: "npm:^5.3.3"
-    vite: "npm:^6.0.0"
-    vite-plugin-dts: "npm:^4.0.0"
-  peerDependencies:
-    idb: ">=8"
-  languageName: unknown
-  linkType: soft
-
 "fs-extra@npm:~11.3.0":
   version: 11.3.5
   resolution: "fs-extra@npm:11.3.5"
@@ -1546,6 +1534,26 @@ __metadata:
   checksum: 10c0/a27d478befe3c8192f006cdd0639a66798979dfa6e2125c6ac582a19a5ebfec62ad83e8382e6036170d873f46e4536a7e795bf8b95bf7c247f4cc0825ccc8c17
   languageName: node
   linkType: hard
+
+"idb-free-sync@workspace:.":
+  version: 0.0.0-use.local
+  resolution: "idb-free-sync@workspace:."
+  dependencies:
+    "@commitlint/cli": "npm:^21.0.2"
+    "@commitlint/config-conventional": "npm:^21.0.2"
+    "@types/gapi": "npm:*"
+    "@types/gapi.client.drive-v3": "npm:*"
+    "@types/google.accounts": "npm:^0.0.18"
+    idb: "npm:^8.0.0"
+    prettier: "npm:^3.8.3"
+    simple-git-hooks: "npm:^2.13.1"
+    typescript: "npm:^5.3.3"
+    vite: "npm:^6.0.0"
+    vite-plugin-dts: "npm:^4.0.0"
+  peerDependencies:
+    idb: ">=8"
+  languageName: unknown
+  linkType: soft
 
 "idb@npm:^8.0.0":
   version: 8.0.3

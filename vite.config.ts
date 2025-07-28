@@ -7,7 +7,7 @@ export default defineConfig({
     lib: {
       entry: 'src/index.ts',
       name: 'FreeSync',
-      fileName: 'free-sync',
+      fileName: 'idb-free-sync',
       formats: ['es', 'cjs'],
     },
     rollupOptions: {

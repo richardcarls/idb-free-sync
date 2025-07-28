@@ -1,16 +1,21 @@
 {
-  "name": "free-sync",
+  "name": "idb-free-sync",
+  "description": "Wraps the idb library and implements a naive sync orchestration layer, keeping a user's local data stored in IndexedDB syncs with their personal cloud storage via simple JSON files. No server required.",
   "version": "0.0.1",
+  "author": {
+    "name": "Rick Carls",
+    "email": "richard.j.carls@gmail.com"
+  },
   "license": "MIT",
   "type": "module",
-  "main": "./dist/free-sync.cjs",
-  "module": "./dist/free-sync.js",
+  "main": "./dist/idb-free-sync.cjs",
+  "module": "./dist/idb-free-sync.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/free-sync.js",
-      "require": "./dist/free-sync.cjs"
+      "import": "./dist/idb-free-sync.js",
+      "require": "./dist/idb-free-sync.cjs"
     }
   },
   "scripts": {
@@ -29,6 +34,7 @@
     "@commitlint/config-conventional": "^21.0.2",
     "@types/gapi": "*",
     "@types/gapi.client.drive-v3": "*",
+    "@types/google.accounts": "^0.0.18",
     "idb": "^8.0.0",
     "prettier": "^3.8.3",
     "simple-git-hooks": "^2.13.1",

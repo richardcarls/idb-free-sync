@@ -11,7 +11,7 @@ const RAW_RUNTIME_STATE =
   ],\
   "dependencyTreeRoots": [\
     {\
-      "name": "free-sync",\
+      "name": "idb-free-sync",\
       "reference": "workspace:."\
     }\
   ],\
@@ -19,7 +19,7 @@ const RAW_RUNTIME_STATE =
   "ignorePatternData": "(^(?:\\\\.yarn\\\\/sdks(?:\\\\/(?!\\\\.{1,2}(?:\\\\/|$))(?:(?:(?!(?:^|\\\\/)\\\\.{1,2}(?:\\\\/|$)).)*?)|$))$)",\
   "pnpZipBackend": "libzip",\
   "fallbackExclusionList": [\
-    ["free-sync", ["workspace:."]]\
+    ["idb-free-sync", ["workspace:."]]\
   ],\
   "fallbackPool": [\
   ],\
@@ -32,13 +32,14 @@ const RAW_RUNTIME_STATE =
           ["@commitlint/config-conventional", "npm:21.0.2"],\
           ["@types/gapi", "npm:0.0.47"],\
           ["@types/gapi.client.drive-v3", "npm:0.0.5"],\
-          ["free-sync", "workspace:."],\
+          ["@types/google.accounts", "npm:0.0.18"],\
           ["idb", "npm:8.0.3"],\
+          ["idb-free-sync", "workspace:."],\
           ["prettier", "npm:3.8.3"],\
           ["simple-git-hooks", "npm:2.13.1"],\
           ["typescript", "patch:typescript@npm%3A5.9.3#optional!builtin<compat/typescript>::version=5.9.3&hash=5786d5"],\
-          ["vite", "virtual:34efb6034cf859e3d7bf4b450ec0f04b4e1213478e2fcc2d19667bc511eb429384421f750e491ea16adceb1bfc00849aaf99a84000f2088d41cab4fd44e63e81#npm:6.4.3"],\
-          ["vite-plugin-dts", "virtual:34efb6034cf859e3d7bf4b450ec0f04b4e1213478e2fcc2d19667bc511eb429384421f750e491ea16adceb1bfc00849aaf99a84000f2088d41cab4fd44e63e81#npm:4.5.4"]\
+          ["vite", "virtual:065a3d92151e5624c228b591613446bf0364c770e621f38ae8b791a06e36ec27b08ef185e7a1a21f936b64c205140a868cf4659da1ca847300758e17b8dd1307#npm:6.4.3"],\
+          ["vite-plugin-dts", "virtual:065a3d92151e5624c228b591613446bf0364c770e621f38ae8b791a06e36ec27b08ef185e7a1a21f936b64c205140a868cf4659da1ca847300758e17b8dd1307#npm:4.5.4"]\
         ],\
         "linkType": "SOFT"\
       }]\
@@ -664,10 +665,10 @@ const RAW_RUNTIME_STATE =
         ],\
         "linkType": "SOFT"\
       }],\
-      ["virtual:0192753931f389e64c056614991efc47b9d5b214e5ca6ba1c86dcb610312f1fbcb303a5b9ae4908846c8ffffd0e75ef25a00a7357467feea24d807b1b18f1c44#npm:5.4.0", {\
-        "packageLocation": "./.yarn/__virtual__/@rollup-pluginutils-virtual-9c0345e4f1/5/C:/Users/rick/AppData/Local/Yarn/Berry/cache/@rollup-pluginutils-npm-5.4.0-560fd27ed7-10c0.zip/node_modules/@rollup/pluginutils/",\
+      ["virtual:3ca9f8b3563d01b0e5f93c0ca1dd5b7b43725fd6b3abc2f425a102d541730c29c793af375032701f219bb7e5c1467612f2866ed41c1a98bea23a38523138002a#npm:5.4.0", {\
+        "packageLocation": "./.yarn/__virtual__/@rollup-pluginutils-virtual-39e1d51902/5/C:/Users/rick/AppData/Local/Yarn/Berry/cache/@rollup-pluginutils-npm-5.4.0-560fd27ed7-10c0.zip/node_modules/@rollup/pluginutils/",\
         "packageDependencies": [\
-          ["@rollup/pluginutils", "virtual:0192753931f389e64c056614991efc47b9d5b214e5ca6ba1c86dcb610312f1fbcb303a5b9ae4908846c8ffffd0e75ef25a00a7357467feea24d807b1b18f1c44#npm:5.4.0"],\
+          ["@rollup/pluginutils", "virtual:3ca9f8b3563d01b0e5f93c0ca1dd5b7b43725fd6b3abc2f425a102d541730c29c793af375032701f219bb7e5c1467612f2866ed41c1a98bea23a38523138002a#npm:5.4.0"],\
           ["@types/estree", "npm:1.0.9"],\
           ["@types/rollup", null],\
           ["estree-walker", "npm:2.0.2"],\
@@ -1076,6 +1077,15 @@ const RAW_RUNTIME_STATE =
         "linkType": "HARD"\
       }]\
     ]],\
+    ["@types/google.accounts", [\
+      ["npm:0.0.18", {\
+        "packageLocation": "../../../../C:/Users/rick/AppData/Local/Yarn/Berry/cache/@types-google.accounts-npm-0.0.18-cab73e6d0a-10c0.zip/node_modules/@types/google.accounts/",\
+        "packageDependencies": [\
+          ["@types/google.accounts", "npm:0.0.18"]\
+        ],\
+        "linkType": "HARD"\
+      }]\
+    ]],\
     ["@volar/language-core", [\
       ["npm:2.4.28", {\
         "packageLocation": "../../../../C:/Users/rick/AppData/Local/Yarn/Berry/cache/@volar-language-core-npm-2.4.28-23fc3d6b92-10c0.zip/node_modules/@volar/language-core/",\
@@ -1151,14 +1161,14 @@ const RAW_RUNTIME_STATE =
         ],\
         "linkType": "SOFT"\
       }],\
-      ["virtual:0192753931f389e64c056614991efc47b9d5b214e5ca6ba1c86dcb610312f1fbcb303a5b9ae4908846c8ffffd0e75ef25a00a7357467feea24d807b1b18f1c44#npm:2.2.0", {\
-        "packageLocation": "./.yarn/__virtual__/@vue-language-core-virtual-7f4c29a7c8/5/C:/Users/rick/AppData/Local/Yarn/Berry/cache/@vue-language-core-npm-2.2.0-451bd2aafd-10c0.zip/node_modules/@vue/language-core/",\
+      ["virtual:3ca9f8b3563d01b0e5f93c0ca1dd5b7b43725fd6b3abc2f425a102d541730c29c793af375032701f219bb7e5c1467612f2866ed41c1a98bea23a38523138002a#npm:2.2.0", {\
+        "packageLocation": "./.yarn/__virtual__/@vue-language-core-virtual-af460796e8/5/C:/Users/rick/AppData/Local/Yarn/Berry/cache/@vue-language-core-npm-2.2.0-451bd2aafd-10c0.zip/node_modules/@vue/language-core/",\
         "packageDependencies": [\
           ["@types/typescript", null],\
           ["@volar/language-core", "npm:2.4.28"],\
           ["@vue/compiler-dom", "npm:3.5.35"],\
           ["@vue/compiler-vue2", "npm:2.7.16"],\
-          ["@vue/language-core", "virtual:0192753931f389e64c056614991efc47b9d5b214e5ca6ba1c86dcb610312f1fbcb303a5b9ae4908846c8ffffd0e75ef25a00a7357467feea24d807b1b18f1c44#npm:2.2.0"],\
+          ["@vue/language-core", "virtual:3ca9f8b3563d01b0e5f93c0ca1dd5b7b43725fd6b3abc2f425a102d541730c29c793af375032701f219bb7e5c1467612f2866ed41c1a98bea23a38523138002a#npm:2.2.0"],\
           ["@vue/shared", "npm:3.5.35"],\
           ["alien-signals", "npm:0.4.14"],\
           ["minimatch", "npm:9.0.9"],\
@@ -1524,11 +1534,11 @@ const RAW_RUNTIME_STATE =
         ],\
         "linkType": "SOFT"\
       }],\
-      ["virtual:0192753931f389e64c056614991efc47b9d5b214e5ca6ba1c86dcb610312f1fbcb303a5b9ae4908846c8ffffd0e75ef25a00a7357467feea24d807b1b18f1c44#npm:4.4.3", {\
-        "packageLocation": "./.yarn/__virtual__/debug-virtual-d41712e55a/5/C:/Users/rick/AppData/Local/Yarn/Berry/cache/debug-npm-4.4.3-0105c6123a-10c0.zip/node_modules/debug/",\
+      ["virtual:3ca9f8b3563d01b0e5f93c0ca1dd5b7b43725fd6b3abc2f425a102d541730c29c793af375032701f219bb7e5c1467612f2866ed41c1a98bea23a38523138002a#npm:4.4.3", {\
+        "packageLocation": "./.yarn/__virtual__/debug-virtual-a48838140d/5/C:/Users/rick/AppData/Local/Yarn/Berry/cache/debug-npm-4.4.3-0105c6123a-10c0.zip/node_modules/debug/",\
         "packageDependencies": [\
           ["@types/supports-color", null],\
-          ["debug", "virtual:0192753931f389e64c056614991efc47b9d5b214e5ca6ba1c86dcb610312f1fbcb303a5b9ae4908846c8ffffd0e75ef25a00a7357467feea24d807b1b18f1c44#npm:4.4.3"],\
+          ["debug", "virtual:3ca9f8b3563d01b0e5f93c0ca1dd5b7b43725fd6b3abc2f425a102d541730c29c793af375032701f219bb7e5c1467612f2866ed41c1a98bea23a38523138002a#npm:4.4.3"],\
           ["ms", "npm:2.1.3"],\
           ["supports-color", null]\
         ],\
@@ -1724,25 +1734,6 @@ const RAW_RUNTIME_STATE =
         "linkType": "HARD"\
       }]\
     ]],\
-    ["free-sync", [\
-      ["workspace:.", {\
-        "packageLocation": "./",\
-        "packageDependencies": [\
-          ["@commitlint/cli", "npm:21.0.2"],\
-          ["@commitlint/config-conventional", "npm:21.0.2"],\
-          ["@types/gapi", "npm:0.0.47"],\
-          ["@types/gapi.client.drive-v3", "npm:0.0.5"],\
-          ["free-sync", "workspace:."],\
-          ["idb", "npm:8.0.3"],\
-          ["prettier", "npm:3.8.3"],\
-          ["simple-git-hooks", "npm:2.13.1"],\
-          ["typescript", "patch:typescript@npm%3A5.9.3#optional!builtin<compat/typescript>::version=5.9.3&hash=5786d5"],\
-          ["vite", "virtual:34efb6034cf859e3d7bf4b450ec0f04b4e1213478e2fcc2d19667bc511eb429384421f750e491ea16adceb1bfc00849aaf99a84000f2088d41cab4fd44e63e81#npm:6.4.3"],\
-          ["vite-plugin-dts", "virtual:34efb6034cf859e3d7bf4b450ec0f04b4e1213478e2fcc2d19667bc511eb429384421f750e491ea16adceb1bfc00849aaf99a84000f2088d41cab4fd44e63e81#npm:4.5.4"]\
-        ],\
-        "linkType": "SOFT"\
-      }]\
-    ]],\
     ["fs-extra", [\
       ["npm:11.3.5", {\
         "packageLocation": "../../../../C:/Users/rick/AppData/Local/Yarn/Berry/cache/fs-extra-npm-11.3.5-1aa9c62625-10c0.zip/node_modules/fs-extra/",\
@@ -1857,6 +1848,26 @@ const RAW_RUNTIME_STATE =
           ["idb", "npm:8.0.3"]\
         ],\
         "linkType": "HARD"\
+      }]\
+    ]],\
+    ["idb-free-sync", [\
+      ["workspace:.", {\
+        "packageLocation": "./",\
+        "packageDependencies": [\
+          ["@commitlint/cli", "npm:21.0.2"],\
+          ["@commitlint/config-conventional", "npm:21.0.2"],\
+          ["@types/gapi", "npm:0.0.47"],\
+          ["@types/gapi.client.drive-v3", "npm:0.0.5"],\
+          ["@types/google.accounts", "npm:0.0.18"],\
+          ["idb", "npm:8.0.3"],\
+          ["idb-free-sync", "workspace:."],\
+          ["prettier", "npm:3.8.3"],\
+          ["simple-git-hooks", "npm:2.13.1"],\
+          ["typescript", "patch:typescript@npm%3A5.9.3#optional!builtin<compat/typescript>::version=5.9.3&hash=5786d5"],\
+          ["vite", "virtual:065a3d92151e5624c228b591613446bf0364c770e621f38ae8b791a06e36ec27b08ef185e7a1a21f936b64c205140a868cf4659da1ca847300758e17b8dd1307#npm:6.4.3"],\
+          ["vite-plugin-dts", "virtual:065a3d92151e5624c228b591613446bf0364c770e621f38ae8b791a06e36ec27b08ef185e7a1a21f936b64c205140a868cf4659da1ca847300758e17b8dd1307#npm:4.5.4"]\
+        ],\
+        "linkType": "SOFT"\
       }]\
     ]],\
     ["import-fresh", [\
@@ -2538,8 +2549,8 @@ const RAW_RUNTIME_STATE =
         ],\
         "linkType": "SOFT"\
       }],\
-      ["virtual:34efb6034cf859e3d7bf4b450ec0f04b4e1213478e2fcc2d19667bc511eb429384421f750e491ea16adceb1bfc00849aaf99a84000f2088d41cab4fd44e63e81#npm:6.4.3", {\
-        "packageLocation": "./.yarn/__virtual__/vite-virtual-692699e622/5/C:/Users/rick/AppData/Local/Yarn/Berry/cache/vite-npm-6.4.3-7a049706dd-10c0.zip/node_modules/vite/",\
+      ["virtual:065a3d92151e5624c228b591613446bf0364c770e621f38ae8b791a06e36ec27b08ef185e7a1a21f936b64c205140a868cf4659da1ca847300758e17b8dd1307#npm:6.4.3", {\
+        "packageLocation": "./.yarn/__virtual__/vite-virtual-842d73c956/5/C:/Users/rick/AppData/Local/Yarn/Berry/cache/vite-npm-6.4.3-7a049706dd-10c0.zip/node_modules/vite/",\
         "packageDependencies": [\
           ["@types/jiti", null],\
           ["@types/less", null],\
@@ -2568,7 +2579,7 @@ const RAW_RUNTIME_STATE =
           ["terser", null],\
           ["tinyglobby", "npm:0.2.17"],\
           ["tsx", null],\
-          ["vite", "virtual:34efb6034cf859e3d7bf4b450ec0f04b4e1213478e2fcc2d19667bc511eb429384421f750e491ea16adceb1bfc00849aaf99a84000f2088d41cab4fd44e63e81#npm:6.4.3"],\
+          ["vite", "virtual:065a3d92151e5624c228b591613446bf0364c770e621f38ae8b791a06e36ec27b08ef185e7a1a21f936b64c205140a868cf4659da1ca847300758e17b8dd1307#npm:6.4.3"],\
           ["yaml", null]\
         ],\
         "packagePeers": [\
@@ -2605,23 +2616,23 @@ const RAW_RUNTIME_STATE =
         ],\
         "linkType": "SOFT"\
       }],\
-      ["virtual:34efb6034cf859e3d7bf4b450ec0f04b4e1213478e2fcc2d19667bc511eb429384421f750e491ea16adceb1bfc00849aaf99a84000f2088d41cab4fd44e63e81#npm:4.5.4", {\
-        "packageLocation": "./.yarn/__virtual__/vite-plugin-dts-virtual-0192753931/5/C:/Users/rick/AppData/Local/Yarn/Berry/cache/vite-plugin-dts-npm-4.5.4-2445647687-10c0.zip/node_modules/vite-plugin-dts/",\
+      ["virtual:065a3d92151e5624c228b591613446bf0364c770e621f38ae8b791a06e36ec27b08ef185e7a1a21f936b64c205140a868cf4659da1ca847300758e17b8dd1307#npm:4.5.4", {\
+        "packageLocation": "./.yarn/__virtual__/vite-plugin-dts-virtual-3ca9f8b356/5/C:/Users/rick/AppData/Local/Yarn/Berry/cache/vite-plugin-dts-npm-4.5.4-2445647687-10c0.zip/node_modules/vite-plugin-dts/",\
         "packageDependencies": [\
           ["@microsoft/api-extractor", "npm:7.58.7"],\
-          ["@rollup/pluginutils", "virtual:0192753931f389e64c056614991efc47b9d5b214e5ca6ba1c86dcb610312f1fbcb303a5b9ae4908846c8ffffd0e75ef25a00a7357467feea24d807b1b18f1c44#npm:5.4.0"],\
+          ["@rollup/pluginutils", "virtual:3ca9f8b3563d01b0e5f93c0ca1dd5b7b43725fd6b3abc2f425a102d541730c29c793af375032701f219bb7e5c1467612f2866ed41c1a98bea23a38523138002a#npm:5.4.0"],\
           ["@types/typescript", null],\
           ["@types/vite", null],\
           ["@volar/typescript", "npm:2.4.28"],\
-          ["@vue/language-core", "virtual:0192753931f389e64c056614991efc47b9d5b214e5ca6ba1c86dcb610312f1fbcb303a5b9ae4908846c8ffffd0e75ef25a00a7357467feea24d807b1b18f1c44#npm:2.2.0"],\
+          ["@vue/language-core", "virtual:3ca9f8b3563d01b0e5f93c0ca1dd5b7b43725fd6b3abc2f425a102d541730c29c793af375032701f219bb7e5c1467612f2866ed41c1a98bea23a38523138002a#npm:2.2.0"],\
           ["compare-versions", "npm:6.1.1"],\
-          ["debug", "virtual:0192753931f389e64c056614991efc47b9d5b214e5ca6ba1c86dcb610312f1fbcb303a5b9ae4908846c8ffffd0e75ef25a00a7357467feea24d807b1b18f1c44#npm:4.4.3"],\
+          ["debug", "virtual:3ca9f8b3563d01b0e5f93c0ca1dd5b7b43725fd6b3abc2f425a102d541730c29c793af375032701f219bb7e5c1467612f2866ed41c1a98bea23a38523138002a#npm:4.4.3"],\
           ["kolorist", "npm:1.8.0"],\
           ["local-pkg", "npm:1.2.1"],\
           ["magic-string", "npm:0.30.21"],\
           ["typescript", "patch:typescript@npm%3A5.9.3#optional!builtin<compat/typescript>::version=5.9.3&hash=5786d5"],\
-          ["vite", "virtual:34efb6034cf859e3d7bf4b450ec0f04b4e1213478e2fcc2d19667bc511eb429384421f750e491ea16adceb1bfc00849aaf99a84000f2088d41cab4fd44e63e81#npm:6.4.3"],\
-          ["vite-plugin-dts", "virtual:34efb6034cf859e3d7bf4b450ec0f04b4e1213478e2fcc2d19667bc511eb429384421f750e491ea16adceb1bfc00849aaf99a84000f2088d41cab4fd44e63e81#npm:4.5.4"]\
+          ["vite", "virtual:065a3d92151e5624c228b591613446bf0364c770e621f38ae8b791a06e36ec27b08ef185e7a1a21f936b64c205140a868cf4659da1ca847300758e17b8dd1307#npm:6.4.3"],\
+          ["vite-plugin-dts", "virtual:065a3d92151e5624c228b591613446bf0364c770e621f38ae8b791a06e36ec27b08ef185e7a1a21f936b64c205140a868cf4659da1ca847300758e17b8dd1307#npm:4.5.4"]\
         ],\
         "packagePeers": [\
           "@types/typescript",\
