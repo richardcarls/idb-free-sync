@@ -7,8 +7,16 @@ import { type SyncTransport, type SyncFileInfo } from './SyncTransport';
 type DriveFile = gapi.client.drive.File;
 type DriveFileWithId = Omit<DriveFile, 'id'> & { id: string };
 
+/**
+ * {@link SyncTransport} for Google Drive's application-data space.
+ *
+ * The transport requests an OAuth access token lazily when an operation first
+ * needs the Google Drive API.
+ */
 export class GoogleDriveTransport implements SyncTransport {
   readonly provider = 'google';
+
+  /** Google OAuth scopes required to manage app-data sync files. */
   readonly scopes = [
     'https://www.googleapis.com/auth/drive.appdata',
     'https://www.googleapis.com/auth/drive.file',
@@ -16,34 +24,58 @@ export class GoogleDriveTransport implements SyncTransport {
 
   private readonly clientId: string;
 
+  /**
+   * Creates a Google Drive transport.
+   *
+   * @param clientId - OAuth client ID used to request Google access tokens
+   */
   constructor(clientId: string) {
     this.clientId = clientId;
   }
 
+  /** Lists metadata for every file in a Google Drive sync folder. */
   async list(storeName: string): Promise<SyncFileInfo[]> {
     const folder = await this.getDriveFolder(storeName);
+
     const result = await (
       await this.client
     ).drive.files.list({
       q: `'${folder.id}' in parents`,
       spaces: 'appDataFolder',
     });
+
     return (result.result.files ?? []).map((file) => this.toSyncFileInfo(file));
   }
 
+  /**
+   * Downloads and parses a JSON file, or returns `undefined` when absent.
+   *
+   * @typeParam T - JSON-serializable record type
+   */
   async get<T>(storeName: string, syncKey: string): Promise<T | undefined> {
     const files = await this.listRawFiles(storeName);
     const file = files.find(({ name }) => name === syncKey);
-    if (!file?.id) return undefined;
+
+    if (!file?.id) {
+      return undefined;
+    }
+
     const response = await (
       await this.client
     ).drive.files.get({
       fileId: file.id,
       alt: 'media',
     });
+
     return JSON.parse(response.body) as T;
   }
 
+  /**
+   * Creates or replaces a JSON file and returns its updated Drive metadata.
+   *
+   * @typeParam T - JSON-serializable record type
+   * @param meta - optional custom Drive properties stored with the file
+   */
   async put<T>(
     storeName: string,
     syncKey: string,
@@ -57,6 +89,7 @@ export class GoogleDriveTransport implements SyncTransport {
     const existingId = files.find(({ name }) => name === syncKey)?.id;
 
     const formData = new FormData();
+
     formData.append(
       'resource',
       new File(
@@ -72,6 +105,7 @@ export class GoogleDriveTransport implements SyncTransport {
         { type: mimeType },
       ),
     );
+
     formData.append(
       'media',
       new File([JSON.stringify(value)], syncKey, { type: mimeType }),
@@ -90,9 +124,14 @@ export class GoogleDriveTransport implements SyncTransport {
     });
 
     const driveFile = (await response.json()) as DriveFile;
+
     return this.toSyncFileInfo(driveFile);
   }
 
+  /**
+   * Deletes a file permanently or marks it as deleted in its JSON and Drive
+   * properties when soft deletion is requested.
+   */
   async delete(
     storeName: string,
     syncKey: string,
@@ -100,10 +139,14 @@ export class GoogleDriveTransport implements SyncTransport {
   ): Promise<void> {
     const files = await this.listRawFiles(storeName);
     const existingId = files.find(({ name }) => name === syncKey)?.id;
-    if (!existingId) return;
+
+    if (!existingId) {
+      return;
+    }
 
     if (soft) {
       const value = await this.get(storeName, syncKey);
+
       if (value && typeof value === 'object') {
         await this.put(
           storeName,
@@ -117,6 +160,7 @@ export class GoogleDriveTransport implements SyncTransport {
     }
   }
 
+  /** Deletes every file in a sync folder, optionally using soft deletion. */
   async deleteAll(storeName: string, soft?: boolean): Promise<void> {
     if (soft) {
       const files = await this.listRawFiles(storeName);
@@ -127,15 +171,19 @@ export class GoogleDriveTransport implements SyncTransport {
       );
     } else {
       const folder = await this.getDriveFolder(storeName);
-      if (folder?.id)
+
+      if (folder?.id) {
         await (await this.client).drive.files.delete({ fileId: folder.id });
+      }
     }
   }
 
+  /** Counts files in a Google Drive sync folder. */
   async count(storeName: string): Promise<number> {
     return (await this.list(storeName)).length;
   }
 
+  /** Converts Google Drive metadata into provider-neutral sync metadata. */
   private toSyncFileInfo(file: DriveFile): SyncFileInfo {
     return {
       id: file.id ?? '',
@@ -148,6 +196,7 @@ export class GoogleDriveTransport implements SyncTransport {
     };
   }
 
+  /** Lists raw Google Drive file resources from a sync folder. */
   private async listRawFiles(storeName: string): Promise<DriveFile[]> {
     const folder = await this.getDriveFolder(storeName);
     const result = await (
@@ -156,21 +205,27 @@ export class GoogleDriveTransport implements SyncTransport {
       q: `'${folder.id}' in parents`,
       spaces: 'appDataFolder',
     });
+
     return result.result.files ?? [];
   }
 
+  /** Resolves an initialized and authenticated Google API client. */
   private get client(): Promise<typeof gapi.client> {
-    if (gapi != null && gapi.client != null)
+    if (gapi != null && gapi.client != null) {
       return Promise.resolve(gapi.client);
+    }
+
     return new Promise((resolve) => {
       const timeout = setTimeout(() => {
         if (google !== undefined && gapi !== undefined) {
           clearTimeout(timeout);
+
           const tokenClient = google.accounts.oauth2.initTokenClient({
             client_id: this.clientId,
             scope: this.scopes.join(' '),
             prompt: '',
             login_hint: window.localStorage.getItem('syncUserId') ?? undefined,
+
             callback: (tokenResponse: google.accounts.oauth2.TokenResponse) => {
               gapi.load('client', async () => {
                 await gapi.client.init({
@@ -181,16 +236,19 @@ export class GoogleDriveTransport implements SyncTransport {
                 if (tokenResponse && tokenResponse.access_token) {
                   gapi.auth.setToken(tokenResponse);
                 }
+
                 resolve(gapi.client);
               });
             },
           });
+
           tokenClient.requestAccessToken();
         }
       }, 1000);
     });
   }
 
+  /** Finds a sync folder in app data, optionally creating it when absent. */
   private async getDriveFolder(
     name: string,
     create?: boolean,
@@ -206,14 +264,22 @@ export class GoogleDriveTransport implements SyncTransport {
       ).result?.files ?? [];
 
     if (!folderList.length) {
-      if (!create) console.warn(`Folder with name "${name}" does not exist.`);
+      if (!create) {
+        console.warn(`Folder with name "${name}" does not exist.`);
+      }
+
       const ids = await this.generateIds(1);
-      if (!ids.length) throw new Error('No id generated for folder.');
+
+      if (!ids.length) {
+        throw new Error('No id generated for folder.');
+      }
+
       return (
         await (
           await this.client
         ).drive.files.create({
           uploadType: 'multipart',
+
           resource: {
             id: ids[0],
             mimeType: 'application/vnd.google-apps.folder',
@@ -223,11 +289,16 @@ export class GoogleDriveTransport implements SyncTransport {
         })
       ).result as DriveFileWithId;
     }
+
     return folderList[0] as DriveFileWithId;
   }
 
+  /** Allocates Google Drive file IDs in the application-data space. */
   private async generateIds(count: number): Promise<string[]> {
-    if (count < 1) throw new RangeError(`count of ${count} is out of bounds.`);
+    if (count < 1) {
+      throw new RangeError(`count of ${count} is out of bounds.`);
+    }
+
     return (
       (
         await (
