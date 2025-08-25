@@ -4,22 +4,28 @@ import { type SyncTransport, type SyncFileInfo } from './SyncTransport';
 
 export type ResolveAction = 'keep-local' | 'keep-remote' | 'delete' | 'ignore';
 
+/** Minimum shape required for records using the default resolver. */
+export interface SyncRecord {
+  modified?: Date;
+  [key: string]: unknown;
+}
+
 /**
  * @callback
  *
  * Chooses how a local record and its matching remote file should be reconciled.
  */
-export type ConflictResolverCB = (
-  localRecord: Record<string, unknown>,
+export type ConflictResolverCB<T extends SyncRecord = SyncRecord> = (
+  localRecord: T,
   remoteInfo: SyncFileInfo,
 ) => ResolveAction;
 
-export interface SyncOptions {
+export interface SyncOptions<T extends SyncRecord = SyncRecord> {
   /** Custom conflict resolver. Defaults to {@link defaultResolver}. */
-  resolve?: ConflictResolverCB;
+  resolve?: ConflictResolverCB<T>;
 
   /** Record field whose truthy value marks a downloaded record as deleted. */
-  softDeleteField?: string;
+  softDeleteField?: keyof T;
 }
 
 /**
@@ -71,11 +77,11 @@ function syncKeyToKey(syncKey: string): string {
  * @param storeName - the IndexedDB store name / transport folder
  * @param options - for conflict-resolution and soft-delete behavior
  */
-export async function syncStore(
+export async function syncStore<T extends SyncRecord>(
   db: IDBPDatabase<any>,
   transport: SyncTransport,
   storeName: string,
-  options?: SyncOptions,
+  options?: SyncOptions<T>,
 ): Promise<void> {
   const resolve = options?.resolve ?? defaultResolver;
   const softDeleteField = options?.softDeleteField;
@@ -100,7 +106,7 @@ export async function syncStore(
       continue;
     }
 
-    const action = resolve(cursor.value as Record<string, unknown>, remoteItem);
+    const action = resolve(cursor.value as T, remoteItem);
 
     switch (action) {
       case 'keep-remote':
@@ -129,16 +135,13 @@ export async function syncStore(
 
   await Promise.allSettled([
     ...fromRemoteQueue.map(async (uuid) => {
-      const value = await transport.get(storeName, keyToSyncKey(uuid));
+      const value = await transport.get<T>(storeName, keyToSyncKey(uuid));
 
       if (value === undefined) {
         throw new Error(`Fetched value for ${uuid} was undefined.`);
       }
 
-      if (
-        softDeleteField &&
-        (value as Record<string, unknown>)[softDeleteField]
-      ) {
+      if (softDeleteField && value[softDeleteField]) {
         return;
       }
 
