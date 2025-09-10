@@ -65,7 +65,7 @@ export class DropboxTransport implements SyncTransport {
 
     const response = await this.client.filesUpload({
       path: `${APP_PATH}/${storeName}/${syncKey}`,
-      mode: { '.tag': 'add' },
+      mode: { '.tag': 'overwrite' },
       contents: blob,
     });
 
