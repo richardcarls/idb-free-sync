@@ -43,6 +43,7 @@ resolver can return `keep-local`, `keep-remote`, `delete`, or `ignore`.
 - `OPFSTransport`: sync to browser Origin Private File System (OPFS)
 - `GoogleDriveTransport`: sync to Google Drive (application data folder)
 - `OneDriveTransport`: sync to Microsoft OneDrive (application folder)
+- `DropboxTransport`: sync to Dropbox (`/Apps/RecipeTome`)
 
 ## Implementing a Transport
 
