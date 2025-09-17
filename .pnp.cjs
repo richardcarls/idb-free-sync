@@ -34,6 +34,7 @@ const RAW_RUNTIME_STATE =
           ["@types/gapi", "npm:0.0.47"],\
           ["@types/gapi.client.drive-v3", "npm:0.0.5"],\
           ["@types/google.accounts", "npm:0.0.18"],\
+          ["dropbox", "virtual:065a3d92151e5624c228b591613446bf0364c770e621f38ae8b791a06e36ec27b08ef185e7a1a21f936b64c205140a868cf4659da1ca847300758e17b8dd1307#npm:10.34.0"],\
           ["idb", "npm:8.0.3"],\
           ["idb-free-sync", "workspace:."],\
           ["prettier", "npm:3.8.3"],\
@@ -1588,6 +1589,27 @@ const RAW_RUNTIME_STATE =
         "linkType": "HARD"\
       }]\
     ]],\
+    ["dropbox", [\
+      ["npm:10.34.0", {\
+        "packageLocation": "../../../../C:/Users/rick/AppData/Local/Yarn/Berry/cache/dropbox-npm-10.34.0-5505799457-10c0.zip/node_modules/dropbox/",\
+        "packageDependencies": [\
+          ["dropbox", "npm:10.34.0"]\
+        ],\
+        "linkType": "SOFT"\
+      }],\
+      ["virtual:065a3d92151e5624c228b591613446bf0364c770e621f38ae8b791a06e36ec27b08ef185e7a1a21f936b64c205140a868cf4659da1ca847300758e17b8dd1307#npm:10.34.0", {\
+        "packageLocation": "./.yarn/__virtual__/dropbox-virtual-78423ada66/5/C:/Users/rick/AppData/Local/Yarn/Berry/cache/dropbox-npm-10.34.0-5505799457-10c0.zip/node_modules/dropbox/",\
+        "packageDependencies": [\
+          ["@types/node-fetch", null],\
+          ["dropbox", "virtual:065a3d92151e5624c228b591613446bf0364c770e621f38ae8b791a06e36ec27b08ef185e7a1a21f936b64c205140a868cf4659da1ca847300758e17b8dd1307#npm:10.34.0"],\
+          ["node-fetch", "virtual:78423ada6628c3adba924e13b009d5065f9d7f2647da173058732cfc460d02a2777f1afd581d2e1c7fce9aa510a92a42d65b694f91e7152be55df1d342022e4f#npm:2.7.0"]\
+        ],\
+        "packagePeers": [\
+          "@types/node-fetch"\
+        ],\
+        "linkType": "HARD"\
+      }]\
+    ]],\
     ["emoji-regex", [\
       ["npm:10.6.0", {\
         "packageLocation": "../../../../C:/Users/rick/AppData/Local/Yarn/Berry/cache/emoji-regex-npm-10.6.0-c849a5dbe0-10c0.zip/node_modules/emoji-regex/",\
@@ -1880,6 +1902,7 @@ const RAW_RUNTIME_STATE =
           ["@types/gapi", "npm:0.0.47"],\
           ["@types/gapi.client.drive-v3", "npm:0.0.5"],\
           ["@types/google.accounts", "npm:0.0.18"],\
+          ["dropbox", "virtual:065a3d92151e5624c228b591613446bf0364c770e621f38ae8b791a06e36ec27b08ef185e7a1a21f936b64c205140a868cf4659da1ca847300758e17b8dd1307#npm:10.34.0"],\
           ["idb", "npm:8.0.3"],\
           ["idb-free-sync", "workspace:."],\
           ["prettier", "npm:3.8.3"],\
@@ -2154,6 +2177,29 @@ const RAW_RUNTIME_STATE =
         "packageLocation": "../../../../C:/Users/rick/AppData/Local/Yarn/Berry/cache/nanoid-npm-3.3.12-41f8e0bb94-10c0.zip/node_modules/nanoid/",\
         "packageDependencies": [\
           ["nanoid", "npm:3.3.12"]\
+        ],\
+        "linkType": "HARD"\
+      }]\
+    ]],\
+    ["node-fetch", [\
+      ["npm:2.7.0", {\
+        "packageLocation": "../../../../C:/Users/rick/AppData/Local/Yarn/Berry/cache/node-fetch-npm-2.7.0-587d57004e-10c0.zip/node_modules/node-fetch/",\
+        "packageDependencies": [\
+          ["node-fetch", "npm:2.7.0"]\
+        ],\
+        "linkType": "SOFT"\
+      }],\
+      ["virtual:78423ada6628c3adba924e13b009d5065f9d7f2647da173058732cfc460d02a2777f1afd581d2e1c7fce9aa510a92a42d65b694f91e7152be55df1d342022e4f#npm:2.7.0", {\
+        "packageLocation": "./.yarn/__virtual__/node-fetch-virtual-8b19a00f3d/5/C:/Users/rick/AppData/Local/Yarn/Berry/cache/node-fetch-npm-2.7.0-587d57004e-10c0.zip/node_modules/node-fetch/",\
+        "packageDependencies": [\
+          ["@types/encoding", null],\
+          ["encoding", null],\
+          ["node-fetch", "virtual:78423ada6628c3adba924e13b009d5065f9d7f2647da173058732cfc460d02a2777f1afd581d2e1c7fce9aa510a92a42d65b694f91e7152be55df1d342022e4f#npm:2.7.0"],\
+          ["whatwg-url", "npm:5.0.0"]\
+        ],\
+        "packagePeers": [\
+          "@types/encoding",\
+          "encoding"\
         ],\
         "linkType": "HARD"\
       }]\
@@ -2526,6 +2572,15 @@ const RAW_RUNTIME_STATE =
         "linkType": "HARD"\
       }]\
     ]],\
+    ["tr46", [\
+      ["npm:0.0.3", {\
+        "packageLocation": "../../../../C:/Users/rick/AppData/Local/Yarn/Berry/cache/tr46-npm-0.0.3-de53018915-10c0.zip/node_modules/tr46/",\
+        "packageDependencies": [\
+          ["tr46", "npm:0.0.3"]\
+        ],\
+        "linkType": "HARD"\
+      }]\
+    ]],\
     ["typescript", [\
       ["patch:typescript@npm%3A5.9.3#optional!builtin<compat/typescript>::version=5.9.3&hash=5786d5", {\
         "packageLocation": "../../../../C:/Users/rick/AppData/Local/Yarn/Berry/cache/typescript-patch-6fda4d02cf-10c0.zip/node_modules/typescript/",\
@@ -2669,6 +2724,26 @@ const RAW_RUNTIME_STATE =
         "packageLocation": "../../../../C:/Users/rick/AppData/Local/Yarn/Berry/cache/vscode-uri-npm-3.1.0-4985fc49ab-10c0.zip/node_modules/vscode-uri/",\
         "packageDependencies": [\
           ["vscode-uri", "npm:3.1.0"]\
+        ],\
+        "linkType": "HARD"\
+      }]\
+    ]],\
+    ["webidl-conversions", [\
+      ["npm:3.0.1", {\
+        "packageLocation": "../../../../C:/Users/rick/AppData/Local/Yarn/Berry/cache/webidl-conversions-npm-3.0.1-60310f6a2b-10c0.zip/node_modules/webidl-conversions/",\
+        "packageDependencies": [\
+          ["webidl-conversions", "npm:3.0.1"]\
+        ],\
+        "linkType": "HARD"\
+      }]\
+    ]],\
+    ["whatwg-url", [\
+      ["npm:5.0.0", {\
+        "packageLocation": "../../../../C:/Users/rick/AppData/Local/Yarn/Berry/cache/whatwg-url-npm-5.0.0-374fb45e60-10c0.zip/node_modules/whatwg-url/",\
+        "packageDependencies": [\
+          ["tr46", "npm:0.0.3"],\
+          ["webidl-conversions", "npm:3.0.1"],\
+          ["whatwg-url", "npm:5.0.0"]\
         ],\
         "linkType": "HARD"\
       }]\

@@ -1,7 +1,7 @@
 {
   "name": "idb-free-sync",
   "description": "Wraps the idb library and implements a naive sync orchestration layer, keeping a user's local data stored in IndexedDB syncs with their personal cloud storage via simple JSON files. No server required.",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "author": {
     "name": "Rick Carls",
     "email": "richard.j.carls@gmail.com"
@@ -48,6 +48,7 @@
     "commit-msg": "yarn commitlint --edit \"$1\""
   },
   "dependencies": {
-    "@azure/msal-browser": "5.11.0"
+    "@azure/msal-browser": "5.11.0",
+    "dropbox": "10.34.0"
   }
 }
