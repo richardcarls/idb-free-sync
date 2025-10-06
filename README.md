@@ -44,6 +44,7 @@ resolver can return `keep-local`, `keep-remote`, `delete`, or `ignore`.
 - `GoogleDriveTransport`: sync to Google Drive (application data folder)
 - `OneDriveTransport`: sync to Microsoft OneDrive (application folder)
 - `DropboxTransport`: sync to Dropbox (`/Apps/RecipeTome`)
+- `WebDAVTransport`: sync to a WebDAV server (`/RecipeTome`)
 
 ## Implementing a Transport
 
