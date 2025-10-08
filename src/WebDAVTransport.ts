@@ -1,4 +1,4 @@
-import { createClient, type WebDAVClient, type FileStat } from 'webdav';
+import { type FileStat, type WebDAVClient, createClient } from 'webdav';
 
 import { type SyncTransport, type SyncFileInfo } from './SyncTransport';
 
@@ -43,6 +43,7 @@ export class WebDAVTransport implements SyncTransport {
       const contents = (await this.client.getDirectoryContents(
         path,
       )) as FileStat[];
+
       return contents
         .filter((item) => item.type === 'file')
         .map((item) => ({
@@ -63,6 +64,7 @@ export class WebDAVTransport implements SyncTransport {
       const text = (await this.client.getFileContents(path, {
         format: 'text',
       })) as string;
+
       return JSON.parse(text) as T;
     } catch {
       return undefined;
@@ -76,11 +78,14 @@ export class WebDAVTransport implements SyncTransport {
     value: T,
   ): Promise<SyncFileInfo> {
     const path = `${BASE_PATH}/${storeName}/${syncKey}`;
+
     await this.ensureDirectory(storeName);
     await this.client.putFileContents(path, JSON.stringify(value, null, 2), {
       overwrite: true,
     });
+
     const stat = (await this.client.stat(path)) as FileStat;
+
     return {
       id: path,
       syncKey,
@@ -100,16 +105,18 @@ export class WebDAVTransport implements SyncTransport {
   ): Promise<void> {
     if (soft) {
       const value = await this.get(storeName, syncKey);
+
       if (value && typeof value === 'object') {
         await this.put(storeName, syncKey, { ...value, deleted: true });
       }
+
       return;
     }
 
     try {
       await this.client.deleteFile(`${BASE_PATH}/${storeName}/${syncKey}`);
     } catch {
-      // Deletion is idempotent for synchronization callers.
+      // no-op: Deletion is idempotent for synchronization callers.
     }
   }
 
@@ -117,16 +124,18 @@ export class WebDAVTransport implements SyncTransport {
   async deleteAll(storeName: string, soft?: boolean): Promise<void> {
     if (soft) {
       const files = await this.list(storeName);
+
       await Promise.allSettled(
         files.map((f) => this.delete(storeName, f.syncKey, true)),
       );
+
       return;
     }
 
     try {
       await this.client.deleteFile(`${BASE_PATH}/${storeName}`);
     } catch {
-      // Deletion is idempotent for synchronization callers.
+      // no-op: Deletion is idempotent for synchronization callers.
     }
   }
 
@@ -139,15 +148,17 @@ export class WebDAVTransport implements SyncTransport {
   private async ensureDirectory(storeName: string): Promise<void> {
     const basePath = BASE_PATH;
     const storePath = `${BASE_PATH}/${storeName}`;
+
     try {
       await this.client.createDirectory(basePath, { recursive: true });
     } catch {
-      // Recursive creation may report an existing collection as an error.
+      // no-op: Recursive creation may report an existing collection as an error.
     }
+
     try {
       await this.client.createDirectory(storePath, { recursive: true });
     } catch {
-      // Recursive creation may report an existing collection as an error.
+      // no-op: Recursive creation may report an existing collection as an error.
     }
   }
 }
