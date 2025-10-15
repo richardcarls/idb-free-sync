@@ -5,3 +5,4 @@ export * from './OPFSTransport';
 export * from './GoogleDriveTransport';
 export * from './OneDriveTransport';
 export * from './DropboxTransport';
+export * from './WebDAVTransport';
