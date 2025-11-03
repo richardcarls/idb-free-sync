@@ -1,13 +1,26 @@
 {
   "name": "idb-free-sync",
-  "description": "Wraps the idb library and implements a naive sync orchestration layer, keeping a user's local data stored in IndexedDB syncs with their personal cloud storage via simple JSON files. No server required.",
   "version": "0.4.0",
+  "description": "Synchronize browser IndexedDB stores with cloud-backed JSON files.",
+  "keywords": [
+    "indexeddb",
+    "sync",
+    "google-drive",
+    "onedrive",
+    "dropbox",
+    "webdav"
+  ],
   "author": {
     "name": "Rick Carls",
     "email": "richard.j.carls@gmail.com"
   },
   "license": "MIT",
   "type": "module",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
   "main": "./dist/idb-free-sync.cjs",
   "module": "./dist/idb-free-sync.js",
   "types": "./dist/index.d.ts",
@@ -20,11 +33,13 @@
   },
   "scripts": {
     "build": "vite build",
-    "typecheck": "tsc --noEmit",
+    "check": "yarn format:check && yarn typecheck && yarn build",
     "commitlint": "commitlint",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "prepare": "simple-git-hooks"
+    "prepare": "simple-git-hooks",
+    "prepublishOnly": "yarn check",
+    "typecheck": "tsc --noEmit"
   },
   "peerDependencies": {
     "idb": ">=8"
@@ -43,6 +58,9 @@
     "vite-plugin-dts": "^4.0.0"
   },
   "packageManager": "yarn@4.14.1",
+  "publishConfig": {
+    "access": "public"
+  },
   "simple-git-hooks": {
     "pre-commit": "yarn format:check",
     "commit-msg": "yarn commitlint --edit \"$1\""
