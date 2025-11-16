@@ -28,9 +28,9 @@ Use these validation commands:
 yarn check
 ```
 
-There is currently no automated test script. For behavioral changes, add tests
-only after establishing an appropriate test setup, or clearly report the
-remaining manual verification needs.
+Vitest tests use fake IndexedDB, MSW, and private provider adapters. Keep tests
+deterministic, credential-free, and safe for fork pull requests. See
+`TESTING.md` for commands and coverage policy.
 
 ## Engineering Conventions
 
@@ -42,6 +42,8 @@ remaining manual verification needs.
 - Keep `SyncFileInfo.syncKey` equal to the provider file name.
 - Keep public exports in `src/index.ts` aligned with public modules.
 - Do not edit generated files in `dist/`; run `yarn build` to regenerate them.
+- Keep test files outside `src/` so they do not enter published declarations.
+- Test provider behavior through private adapters and MSW request contracts.
 - Avoid unrelated formatting or refactoring.
 - Use Conventional Commit subjects; the `commit-msg` hook enforces them.
 

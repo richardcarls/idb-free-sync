@@ -33,13 +33,17 @@
   },
   "scripts": {
     "build": "vite build",
-    "check": "yarn format:check && yarn typecheck && yarn build",
+    "check": "yarn format:check && yarn typecheck && yarn typecheck:test && yarn test:coverage && yarn build",
     "commitlint": "commitlint",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "prepare": "simple-git-hooks",
     "prepublishOnly": "yarn check",
-    "typecheck": "tsc --noEmit"
+    "test": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:run": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "typecheck:test": "tsc --noEmit -p tsconfig.test.json"
   },
   "peerDependencies": {
     "idb": ">=8"
@@ -47,15 +51,21 @@
   "devDependencies": {
     "@commitlint/cli": "^21.0.2",
     "@commitlint/config-conventional": "^21.0.2",
+    "@nodable/entities": "^2.1.1",
     "@types/gapi": "*",
     "@types/gapi.client.drive-v3": "*",
     "@types/google.accounts": "^0.0.18",
+    "@types/node": "^25.9.2",
+    "@vitest/coverage-v8": "^4.1.8",
+    "fake-indexeddb": "^6.2.5",
     "idb": "^8.0.0",
+    "msw": "^2.14.6",
     "prettier": "^3.8.3",
     "simple-git-hooks": "^2.13.1",
     "typescript": "^5.3.3",
     "vite": "^6.0.0",
-    "vite-plugin-dts": "^4.0.0"
+    "vite-plugin-dts": "^4.0.0",
+    "vitest": "^4.1.8"
   },
   "packageManager": "yarn@4.14.1",
   "publishConfig": {

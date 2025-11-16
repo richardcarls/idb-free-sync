@@ -1,10 +1,12 @@
 import {
   type AccountInfo,
-  PublicClientApplication,
   InteractionRequiredAuthError,
+  type PublicClientApplication,
 } from '@azure/msal-browser';
 
 import { type SyncTransport, type SyncFileInfo } from './SyncTransport';
+import { createMsalClient } from './internal/msalAdapter';
+import { request } from './internal/request';
 
 const GRAPH_BASE = 'https://graph.microsoft.com/v1.0';
 
@@ -57,7 +59,7 @@ export class OneDriveTransport implements SyncTransport {
   async list(storeName: string): Promise<SyncFileInfo[]> {
     const token = await this.getToken();
     const url = `${GRAPH_BASE}/me/drive/special/approot:/${storeName}:/children?$select=id,name,lastModifiedDateTime,createdDateTime,size,file`;
-    const response = await fetch(url, {
+    const response = await request(url, {
       headers: { Authorization: `Bearer ${token}` },
     });
 
@@ -90,7 +92,7 @@ export class OneDriveTransport implements SyncTransport {
   async get<T>(storeName: string, syncKey: string): Promise<T | undefined> {
     const token = await this.getToken();
     const url = `${GRAPH_BASE}/me/drive/special/approot:/${storeName}/${syncKey}:/content`;
-    const response = await fetch(url, {
+    const response = await request(url, {
       headers: { Authorization: `Bearer ${token}` },
     });
 
@@ -120,7 +122,7 @@ export class OneDriveTransport implements SyncTransport {
     await this.ensureDirectory(storeName, token);
 
     const url = `${GRAPH_BASE}/me/drive/special/approot:/${storeName}/${syncKey}:/content`;
-    const response = await fetch(url, {
+    const response = await request(url, {
       method: 'PUT',
       headers: {
         Authorization: `Bearer ${token}`,
@@ -171,7 +173,7 @@ export class OneDriveTransport implements SyncTransport {
 
     const url = `${GRAPH_BASE}/me/drive/items/${fileId}`;
 
-    await fetch(url, {
+    await request(url, {
       method: 'DELETE',
       headers: { Authorization: `Bearer ${token}` },
     });
@@ -196,7 +198,7 @@ export class OneDriveTransport implements SyncTransport {
       return;
     }
 
-    await fetch(`${GRAPH_BASE}/me/drive/items/${dirId}`, {
+    await request(`${GRAPH_BASE}/me/drive/items/${dirId}`, {
       method: 'DELETE',
       headers: { Authorization: `Bearer ${token}` },
     });
@@ -241,14 +243,7 @@ export class OneDriveTransport implements SyncTransport {
 
     if (!this.initPromise) {
       this.initPromise = (async () => {
-        this.msalInstance = new PublicClientApplication({
-          auth: {
-            clientId: this.clientId,
-            authority: 'https://login.microsoftonline.com/common',
-            redirectUri: window.location.origin,
-          },
-          cache: { cacheLocation: 'localStorage' },
-        });
+        this.msalInstance = createMsalClient(this.clientId);
 
         await this.msalInstance.initialize();
         await this.msalInstance.handleRedirectPromise();
@@ -262,7 +257,7 @@ export class OneDriveTransport implements SyncTransport {
   private async ensureDirectory(name: string, token: string): Promise<void> {
     const url = `${GRAPH_BASE}/me/drive/special/approot/children`;
 
-    await fetch(url, {
+    await request(url, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${token}`,
@@ -283,7 +278,7 @@ export class OneDriveTransport implements SyncTransport {
     token: string,
   ): Promise<string | null> {
     const url = `${GRAPH_BASE}/me/drive/special/approot:/${storeName}/${syncKey}?$select=id`;
-    const response = await fetch(url, {
+    const response = await request(url, {
       headers: { Authorization: `Bearer ${token}` },
     });
 
@@ -302,7 +297,7 @@ export class OneDriveTransport implements SyncTransport {
     token: string,
   ): Promise<string | null> {
     const url = `${GRAPH_BASE}/me/drive/special/approot:/${name}?$select=id`;
-    const response = await fetch(url, {
+    const response = await request(url, {
       headers: { Authorization: `Bearer ${token}` },
     });
 

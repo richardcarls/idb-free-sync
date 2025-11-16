@@ -25,11 +25,14 @@ Useful individual commands:
 yarn format
 yarn format:check
 yarn typecheck
+yarn typecheck:test
+yarn test:run
+yarn test:coverage
 yarn build
 ```
 
-There is not yet an automated test suite. Describe manual verification in your
-pull request when behavior changes.
+Tests must remain deterministic and must not require cloud-provider credentials
+or make real provider requests. See [TESTING.md](./TESTING.md).
 
 ## Pull Requests
 
@@ -37,6 +40,7 @@ pull request when behavior changes.
 - Update `README.md` when public API or behavior changes.
 - Run `yarn check` before opening the pull request.
 - Add or update transport behavior consistently across affected providers.
+- Add or update tests for behavior changes and keep coverage thresholds passing.
 - Explain compatibility implications for changes to key mapping, conflict
   resolution, deletion, storage roots, or authentication.
 

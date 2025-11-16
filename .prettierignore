@@ -2,4 +2,5 @@
 .pnp.loader.mjs
 .yarn/
 dist/
+coverage/
 yarn.lock

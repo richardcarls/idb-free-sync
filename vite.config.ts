@@ -14,5 +14,5 @@ export default defineConfig({
       external: ['idb'],
     },
   },
-  plugins: [dts({ insertTypesEntry: true })],
+  plugins: [dts({ include: ['src/*.ts'], insertTypesEntry: true })],
 });
