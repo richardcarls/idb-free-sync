@@ -1,6 +1,7 @@
-import { type FileStat, type WebDAVClient, createClient } from 'webdav';
+import { type FileStat, type WebDAVClient } from 'webdav';
 
 import { type SyncTransport, type SyncFileInfo } from './SyncTransport';
+import { createWebDAVClient } from './internal/webdavAdapter';
 
 /** Connection configuration for {@link WebDAVTransport}. */
 export type WebDAVConfig = {
@@ -27,13 +28,7 @@ export class WebDAVTransport implements SyncTransport {
 
   /** Creates a WebDAV transport from direct server credentials. */
   constructor(config: WebDAVConfig) {
-    this.client = createClient(config.url, {
-      username: config.username,
-      password: config.password,
-      token: config.token
-        ? { token_type: 'Bearer', access_token: config.token }
-        : undefined,
-    });
+    this.client = createWebDAVClient(config);
   }
 
   /** Lists metadata for every file in a WebDAV sync folder. */
