@@ -61,6 +61,15 @@ Records should also include a `modified` `Date` when using the default conflict
 resolver. The resolver keeps the most recently modified copy, honors remote
 deletion metadata, and otherwise leaves equal records unchanged.
 
+If a schema stores that timestamp under another key, configure
+`modifiedField`:
+
+```ts
+await syncStore(db, transport, 'notes', {
+  modifiedField: 'updatedAt',
+});
+```
+
 ```ts
 await db.put('notes', {
   id: 'abc',

@@ -9,6 +9,11 @@ import {
 import type { SyncFileInfo, SyncTransport } from '../src/SyncTransport';
 
 type NoteRecord = SyncRecord & { id: string; title: string; deleted?: boolean };
+type TimestampedNote = SyncRecord & {
+  id: string;
+  title: string;
+  updatedAt?: Date;
+};
 
 const dbName = 'free-sync-orchestrator-test';
 let db: IDBPDatabase;
@@ -127,6 +132,79 @@ describe('syncStore', () => {
 
     expect(await db.get('notes', 'gone')).toBeUndefined();
   });
+
+  it('uses a configured modification field for conflicts', async () => {
+    const now = new Date('2026-01-02T00:00:00Z');
+    const earlier = new Date('2026-01-01T00:00:00Z');
+    await db.put('notes', { id: 'local', title: 'Local', updatedAt: now });
+    await db.put('notes', { id: 'remote', title: 'Local', updatedAt: earlier });
+    const sync = transport(
+      [
+        { id: 'local.json', syncKey: 'local.json', modified: earlier },
+        { id: 'remote.json', syncKey: 'remote.json', modified: now },
+      ],
+      {
+        'remote.json': { id: 'remote', title: 'Remote', updatedAt: now },
+      },
+    );
+
+    await syncStore<TimestampedNote>(db, sync, 'notes', {
+      modifiedField: 'updatedAt',
+    });
+
+    expect(sync.put).toHaveBeenCalledWith(
+      'notes',
+      'local.json',
+      expect.objectContaining({ title: 'Local' }),
+    );
+    expect(await db.get('notes', 'remote')).toMatchObject({ title: 'Remote' });
+  });
+
+  it('gives a custom resolver precedence over modifiedField', async () => {
+    const now = new Date('2026-01-02T00:00:00Z');
+    const earlier = new Date('2026-01-01T00:00:00Z');
+    await db.put('notes', { id: 'a', title: 'Local', updatedAt: now });
+    const sync = transport(
+      [{ id: 'a.json', syncKey: 'a.json', modified: earlier }],
+      { 'a.json': { id: 'a', title: 'Remote', updatedAt: earlier } },
+    );
+
+    await syncStore<TimestampedNote>(db, sync, 'notes', {
+      modifiedField: 'updatedAt',
+      resolve: () => 'keep-remote',
+    });
+
+    expect(await db.get('notes', 'a')).toMatchObject({ title: 'Remote' });
+  });
+
+  it.each([
+    [{ deleted: true }, undefined, true],
+    [{ modified: new Date('2026-01-02T00:00:00Z') }, undefined, false],
+    [
+      { modified: new Date('2026-01-02T00:00:00Z') },
+      new Date('2026-01-02T00:00:00Z'),
+      false,
+    ],
+  ] as const)(
+    'handles modifiedField edge cases',
+    async (remoteInfo, updatedAt, deleted) => {
+      await db.put('notes', { id: 'edge', title: 'Local', updatedAt });
+      const sync = transport(
+        [{ id: 'edge.json', syncKey: 'edge.json', ...remoteInfo }],
+        {
+          'edge.json': { id: 'edge', title: 'Remote', updatedAt },
+        },
+      );
+
+      await syncStore<TimestampedNote>(db, sync, 'notes', {
+        modifiedField: 'updatedAt',
+      });
+
+      if (deleted) {
+        expect(await db.get('notes', 'edge')).toBeUndefined();
+      }
+    },
+  );
 
   it('settles queue failures and logs transport failures', async () => {
     await db.put('notes', { id: 'upload', title: 'Upload' });
