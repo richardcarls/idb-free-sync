@@ -1,10 +1,15 @@
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
+  // Keep Vitest's writable cache inside the Yarn PnP project boundary.
   cacheDir: '.yarn/.vitest-cache',
+
   test: {
+    // Browser APIs needed by the library are installed selectively in test/setup.ts.
     environment: 'node',
+
     setupFiles: ['./test/setup.ts'],
+
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json-summary', 'html'],

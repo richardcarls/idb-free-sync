@@ -7,10 +7,13 @@ import { createWebDAVClient } from './internal/webdavAdapter';
 export type WebDAVConfig = {
   /** Base URL of the WebDAV server. */
   url: string;
+
   /** Username for HTTP Basic authentication. */
   username?: string;
+
   /** Password for HTTP Basic authentication. */
   password?: string;
+
   /** Bearer token for token-based authentication. */
   token?: string;
 };

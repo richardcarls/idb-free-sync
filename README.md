@@ -1,9 +1,8 @@
 # idb-free-sync
 
 `idb-free-sync` wraps the [idb](https://github.com/jakearchibald/idb)
-library with a small sync orchestration layer. Each IndexedDB record is stored
-as a JSON file in a user's personal cloud storage, so an application can offer
-basic synchronization without operating its own sync server.
+library with a simple JSON-based sync orchestration layer. It primarily supports personal cloud storage, so an application can offer
+remote data persistence and synchronization without operating its own sync server.
 
 > [!WARNING]
 > This project is under active development and is not ready for publication or
@@ -57,7 +56,7 @@ await syncStore(db, transport, 'notes');
 Records must use string primary keys. A local key such as `abc` maps to the
 remote file `abc.json`.
 
-Records should also include a `modified` `Date` when using the default conflict
+Records should also include a `modified` field of type `Date` when using the default conflict
 resolver. The resolver keeps the most recently modified copy, honors remote
 deletion metadata, and otherwise leaves equal records unchanged.
 
@@ -100,8 +99,7 @@ deletion by storing `deleted: true` in the remote JSON record.
 
 ## Transports
 
-All transports are browser-oriented. Persistence transports store each
-IndexedDB object store in a separate provider folder.
+All transports are implemented client-side, only relying on provider OAuth flow and APIs.
 
 ### NullTransport
 

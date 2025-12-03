@@ -18,6 +18,12 @@ type TimestampedNote = SyncRecord & {
 const dbName = 'free-sync-orchestrator-test';
 let db: IDBPDatabase;
 
+/**
+ * Creates a deterministic in-memory transport for orchestrator behavior tests.
+ *
+ * @param files - metadata exposed by the remote listing
+ * @param values - JSON records returned by remote key
+ */
 function transport(
   files: SyncFileInfo[] = [],
   values: globalThis.Record<string, NoteRecord | undefined> = {},
@@ -25,11 +31,15 @@ function transport(
   const get = vi.fn((_store: string, key: string) =>
     Promise.resolve(values[key]),
   );
+
   return {
     provider: 'test',
     scopes: [],
     list: vi.fn().mockResolvedValue(files),
+
+    // The generic interface permits any JSON record; this fixture narrows values to notes.
     get: get as SyncTransport['get'],
+
     put: vi.fn((_store, key) => Promise.resolve({ id: key, syncKey: key })),
     delete: vi.fn().mockResolvedValue(undefined),
     deleteAll: vi.fn().mockResolvedValue(undefined),
@@ -43,12 +53,14 @@ beforeEach(async () => {
       database.createObjectStore('notes', { keyPath: 'id' });
     },
   });
+
   vi.spyOn(console, 'log').mockImplementation(() => {});
   vi.spyOn(console, 'error').mockImplementation(() => {});
 });
 
 afterEach(async () => {
   db.close();
+
   await deleteDB(dbName);
 });
 
@@ -71,6 +83,7 @@ describe('defaultResolver', () => {
 describe('syncStore', () => {
   it('uploads local-only records and downloads remote-only records', async () => {
     await db.put('notes', { id: 'local', title: 'Local' });
+
     const remote = { id: 'remote', title: 'Remote' };
     const sync = transport([{ id: 'remote.json', syncKey: 'remote.json' }], {
       'remote.json': remote,
@@ -83,6 +96,7 @@ describe('syncStore', () => {
       'local.json',
       expect.objectContaining({ id: 'local' }),
     );
+
     expect(await db.get('notes', 'remote')).toEqual(remote);
   });
 
@@ -90,10 +104,12 @@ describe('syncStore', () => {
     for (const id of ['remote', 'local', 'delete', 'ignore']) {
       await db.put('notes', { id, title: id });
     }
+
     const files = ['remote', 'local', 'delete', 'ignore'].map((id) => ({
       id: `${id}.json`,
       syncKey: `${id}.json`,
     }));
+
     const sync = transport(files, {
       'remote.json': { id: 'remote', title: 'updated' },
     });
@@ -136,8 +152,10 @@ describe('syncStore', () => {
   it('uses a configured modification field for conflicts', async () => {
     const now = new Date('2026-01-02T00:00:00Z');
     const earlier = new Date('2026-01-01T00:00:00Z');
+
     await db.put('notes', { id: 'local', title: 'Local', updatedAt: now });
     await db.put('notes', { id: 'remote', title: 'Local', updatedAt: earlier });
+
     const sync = transport(
       [
         { id: 'local.json', syncKey: 'local.json', modified: earlier },
@@ -157,13 +175,16 @@ describe('syncStore', () => {
       'local.json',
       expect.objectContaining({ title: 'Local' }),
     );
+
     expect(await db.get('notes', 'remote')).toMatchObject({ title: 'Remote' });
   });
 
   it('gives a custom resolver precedence over modifiedField', async () => {
     const now = new Date('2026-01-02T00:00:00Z');
     const earlier = new Date('2026-01-01T00:00:00Z');
+
     await db.put('notes', { id: 'a', title: 'Local', updatedAt: now });
+
     const sync = transport(
       [{ id: 'a.json', syncKey: 'a.json', modified: earlier }],
       { 'a.json': { id: 'a', title: 'Remote', updatedAt: earlier } },
@@ -179,7 +200,9 @@ describe('syncStore', () => {
 
   it.each([
     [{ deleted: true }, undefined, true],
+
     [{ modified: new Date('2026-01-02T00:00:00Z') }, undefined, false],
+
     [
       { modified: new Date('2026-01-02T00:00:00Z') },
       new Date('2026-01-02T00:00:00Z'),
@@ -189,6 +212,7 @@ describe('syncStore', () => {
     'handles modifiedField edge cases',
     async (remoteInfo, updatedAt, deleted) => {
       await db.put('notes', { id: 'edge', title: 'Local', updatedAt });
+
       const sync = transport(
         [{ id: 'edge.json', syncKey: 'edge.json', ...remoteInfo }],
         {
@@ -208,9 +232,11 @@ describe('syncStore', () => {
 
   it('settles queue failures and logs transport failures', async () => {
     await db.put('notes', { id: 'upload', title: 'Upload' });
+
     const sync = transport([{ id: 'missing.json', syncKey: 'missing.json' }], {
       'missing.json': undefined,
     });
+
     vi.mocked(sync.put).mockRejectedValue(new Error('upload failed'));
 
     await expect(
@@ -222,6 +248,7 @@ describe('syncStore', () => {
 
   it('logs local database and remote delete queue failures', async () => {
     await db.put('notes', { id: 'delete', title: 'Delete' });
+
     const sync = transport(
       [
         { id: 'delete.json', syncKey: 'delete.json' },
@@ -231,6 +258,7 @@ describe('syncStore', () => {
         'remote.json': { id: 'remote', title: 'Remote' },
       },
     );
+
     vi.mocked(sync.delete).mockRejectedValue(new Error('delete failed'));
     vi.spyOn(db, 'put').mockRejectedValue(new Error('database failed'));
 

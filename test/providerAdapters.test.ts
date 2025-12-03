@@ -32,44 +32,54 @@ describe('request adapter', () => {
 describe('Google adapter', () => {
   it('returns an already loaded client', async () => {
     const client = { drive: {} };
+
     vi.stubGlobal('gapi', { client });
 
     await expect(getGoogleClient('client', ['scope'])).resolves.toBe(client);
   });
 
   it('initializes OAuth and the Drive client when globals become available', async () => {
+    // The adapter polls for host-provided Google globals before initializing.
     vi.useFakeTimers();
+
     const client = { init: vi.fn().mockResolvedValue(undefined) };
     const setToken = vi.fn();
     const requestAccessToken = vi.fn();
+
     vi.stubGlobal('window', {
       localStorage: { getItem: () => 'user@example.com' },
     });
 
     const pending = getGoogleClient('client', ['scope-a', 'scope-b']);
+
     setTimeout(() => {
       vi.stubGlobal('gapi', {
         client,
         auth: { setToken },
         load: (_name: string, callback: () => void) => callback(),
       });
+
       vi.stubGlobal('google', {
         accounts: {
           oauth2: {
             initTokenClient: vi.fn((config) => {
               queueMicrotask(() => config.callback({ access_token: 'token' }));
+
               return { requestAccessToken };
             }),
           },
         },
       });
     }, 500);
+
     await vi.advanceTimersByTimeAsync(1000);
 
     await expect(pending).resolves.toBe(client);
+
     expect(requestAccessToken).toHaveBeenCalled();
     expect(client.init).toHaveBeenCalled();
     expect(setToken).toHaveBeenCalledWith({ access_token: 'token' });
+
     vi.useRealTimers();
   });
 });

@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DropboxTransport } from '../src/DropboxTransport';
 import { expectSyncFileInfo } from './support/transportContract';
 
+// Makes the shared client available to Vitest's hoisted adapter mock.
 const { client } = vi.hoisted(() => ({
   client: {
     filesListFolder: vi.fn(),
@@ -26,6 +27,7 @@ const file = {
 
 beforeEach(() => {
   vi.clearAllMocks();
+
   client.filesDeleteV2.mockResolvedValue({});
 });
 
@@ -34,6 +36,7 @@ describe('DropboxTransport', () => {
     client.filesListFolder.mockResolvedValueOnce({
       result: { entries: [file, { '.tag': 'folder', name: 'folder' }] },
     });
+
     const transport = new DropboxTransport();
 
     expect(await transport.list('notes')).toEqual([
@@ -41,6 +44,7 @@ describe('DropboxTransport', () => {
     ]);
 
     client.filesListFolder.mockRejectedValueOnce({ status: 409 });
+
     expect(await transport.list('missing')).toEqual([]);
   });
 
@@ -48,11 +52,13 @@ describe('DropboxTransport', () => {
     client.filesDownload.mockResolvedValueOnce({
       result: { ...file, fileBlob: new Blob(['{"id":"a"}']) },
     });
+
     const transport = new DropboxTransport();
 
     expect(await transport.get('notes', 'a.json')).toEqual({ id: 'a' });
 
     client.filesDownload.mockRejectedValueOnce(new Error('missing'));
+
     expect(await transport.get('notes', 'missing.json')).toBeUndefined();
   });
 
@@ -80,6 +86,7 @@ describe('DropboxTransport', () => {
     });
     client.filesUpload.mockResolvedValue({ result: file });
     client.filesListFolder.mockResolvedValue({ result: { entries: [file] } });
+
     const transport = new DropboxTransport();
 
     await transport.delete('notes', 'a.json', true);
@@ -96,6 +103,7 @@ describe('DropboxTransport', () => {
     expect(client.filesDeleteV2).toHaveBeenCalledWith({
       path: '/Apps/RecipeTome/notes',
     });
+
     expect(await transport.count('notes')).toBe(1);
   });
 });

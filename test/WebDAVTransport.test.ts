@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { WebDAVTransport } from '../src/WebDAVTransport';
 import { expectSyncFileInfo } from './support/transportContract';
 
+// Makes adapter delegates available to Vitest's hoisted module mock.
 const { client, createWebDAVClient } = vi.hoisted(() => ({
   client: {
     getDirectoryContents: vi.fn(),
@@ -29,6 +30,7 @@ const stat = {
 
 beforeEach(() => {
   vi.clearAllMocks();
+
   createWebDAVClient.mockReturnValue(client);
   client.deleteFile.mockResolvedValue(undefined);
   client.createDirectory.mockResolvedValue(undefined);
@@ -37,7 +39,9 @@ beforeEach(() => {
 describe('WebDAVTransport', () => {
   it('passes configuration to its private adapter', () => {
     const config = { url: 'https://dav.example', token: 'token' };
+
     new WebDAVTransport(config);
+
     expect(createWebDAVClient).toHaveBeenCalledWith(config);
   });
 
@@ -46,6 +50,7 @@ describe('WebDAVTransport', () => {
       stat,
       { ...stat, type: 'directory' },
     ]);
+
     const transport = new WebDAVTransport({ url: 'https://dav.example' });
 
     expect(await transport.list('notes')).toEqual([
@@ -53,21 +58,25 @@ describe('WebDAVTransport', () => {
     ]);
 
     client.getDirectoryContents.mockRejectedValueOnce(new Error('missing'));
+
     expect(await transport.list('missing')).toEqual([]);
   });
 
   it('gets JSON and treats failures as missing', async () => {
     client.getFileContents.mockResolvedValueOnce('{"id":"a"}');
+
     const transport = new WebDAVTransport({ url: 'https://dav.example' });
 
     expect(await transport.get('notes', 'a.json')).toEqual({ id: 'a' });
 
     client.getFileContents.mockRejectedValueOnce(new Error('missing'));
+
     expect(await transport.get('notes', 'missing.json')).toBeUndefined();
   });
 
   it('ensures directories, uploads JSON, and maps metadata', async () => {
     client.stat.mockResolvedValue(stat);
+
     const transport = new WebDAVTransport({ url: 'https://dav.example' });
 
     const result = await transport.put('notes', 'a.json', { id: 'a' });
@@ -87,6 +96,7 @@ describe('WebDAVTransport', () => {
     client.stat.mockResolvedValue(stat);
     client.getDirectoryContents.mockResolvedValue([stat]);
     client.deleteFile.mockRejectedValue(new Error('already gone'));
+
     const transport = new WebDAVTransport({ url: 'https://dav.example' });
 
     await expect(
@@ -95,6 +105,7 @@ describe('WebDAVTransport', () => {
     await expect(transport.delete('notes', 'a.json')).resolves.toBeUndefined();
     await expect(transport.deleteAll('notes', true)).resolves.toBeUndefined();
     await expect(transport.deleteAll('notes')).resolves.toBeUndefined();
+
     expect(await transport.count('notes')).toBe(1);
   });
 });
