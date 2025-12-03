@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+// Makes constructor spies available to Vitest's hoisted SDK module mocks.
 const { Dropbox, PublicClientApplication, createClient } = vi.hoisted(() => ({
   Dropbox: vi.fn(),
   PublicClientApplication: vi.fn(),
@@ -16,9 +17,11 @@ import { createWebDAVClient } from '../src/internal/webdavAdapter';
 
 beforeEach(() => {
   vi.clearAllMocks();
+
   vi.stubGlobal('localStorage', {
     getItem: vi.fn(() => 'dropbox-token'),
   });
+
   vi.stubGlobal('window', {
     location: { origin: 'https://app.example' },
   });
@@ -27,15 +30,19 @@ beforeEach(() => {
 describe('SDK adapters', () => {
   it('constructs Dropbox with the stored access token', () => {
     createDropboxClient();
+
     expect(Dropbox).toHaveBeenCalledWith({ accessToken: 'dropbox-token' });
 
     vi.stubGlobal('localStorage', { getItem: () => null });
+
     createDropboxClient();
+
     expect(Dropbox).toHaveBeenLastCalledWith({ accessToken: '' });
   });
 
   it('constructs MSAL with the application identity settings', () => {
     createMsalClient('client-id');
+
     expect(PublicClientApplication).toHaveBeenCalledWith({
       auth: {
         clientId: 'client-id',
@@ -52,6 +59,7 @@ describe('SDK adapters', () => {
       username: 'user',
       password: 'password',
     });
+
     createWebDAVClient({ url: 'https://dav.example', token: 'token' });
 
     expect(createClient).toHaveBeenNthCalledWith(1, 'https://dav.example', {
@@ -59,6 +67,7 @@ describe('SDK adapters', () => {
       password: 'password',
       token: undefined,
     });
+
     expect(createClient).toHaveBeenNthCalledWith(2, 'https://dav.example', {
       username: undefined,
       password: undefined,

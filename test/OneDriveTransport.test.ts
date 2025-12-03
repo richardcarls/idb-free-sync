@@ -6,6 +6,7 @@ import { OneDriveTransport } from '../src/OneDriveTransport';
 import { server } from './support/server';
 import { expectSyncFileInfo } from './support/transportContract';
 
+// Makes the shared MSAL client available to Vitest's hoisted adapter mock.
 const { msal } = vi.hoisted(() => ({
   msal: {
     initialize: vi.fn().mockResolvedValue(undefined),
@@ -23,10 +24,17 @@ vi.mock('../src/internal/msalAdapter', () => ({
 }));
 
 const graph = 'https://graph.microsoft.com/v1.0';
+
+/**
+ * Creates an exact Graph endpoint matcher that still permits query parameters.
+ *
+ * @param path - Graph path beginning with a slash
+ */
 const endpoint = (path: string) =>
   new RegExp(
     `^${`${graph}${path}`.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?:\\?.*)?$`,
   );
+
 const item = {
   id: '1',
   name: 'a.json',
@@ -38,6 +46,7 @@ const item = {
 
 beforeEach(() => {
   vi.clearAllMocks();
+
   msal.getAllAccounts.mockReturnValue([{ homeAccountId: 'account' }]);
   msal.acquireTokenSilent.mockResolvedValue({ accessToken: 'token' });
 });
@@ -65,11 +74,13 @@ describe('OneDriveTransport', () => {
         endpoint('/me/drive/special/approot:/notes:/children'),
         () => new HttpResponse(null, { status: 404 }),
       ),
+
       http.get(
         endpoint('/me/drive/special/approot:/notes/a.json:/content'),
         () => new HttpResponse(null, { status: 404 }),
       ),
     );
+
     const transport = new OneDriveTransport('client');
 
     expect(await transport.list('notes')).toEqual([]);
@@ -82,13 +93,16 @@ describe('OneDriveTransport', () => {
         endpoint('/me/drive/special/approot:/notes:/children'),
         () => new HttpResponse(null, { status: 500 }),
       ),
+
       http.get(
         endpoint('/me/drive/special/approot:/notes/a.json:/content'),
         () => new HttpResponse(null, { status: 500 }),
       ),
+
       http.post(endpoint('/me/drive/special/approot/children'), () =>
         HttpResponse.json({}),
       ),
+
       http.put(
         endpoint('/me/drive/special/approot:/notes/a.json:/content'),
         () => new HttpResponse(null, { status: 500 }),
@@ -106,19 +120,24 @@ describe('OneDriveTransport', () => {
   });
 
   it('puts JSON after ensuring the directory', async () => {
+    // Requests are captured in execution order: directory creation, then upload.
     const requests: Request[] = [];
+
     server.use(
       http.post(
         endpoint('/me/drive/special/approot/children'),
         ({ request }) => {
           requests.push(request);
+
           return HttpResponse.json({});
         },
       ),
+
       http.put(
         endpoint('/me/drive/special/approot:/notes/a.json:/content'),
         ({ request }) => {
           requests.push(request);
+
           return HttpResponse.json(item);
         },
       ),
@@ -140,6 +159,7 @@ describe('OneDriveTransport', () => {
     msal.acquireTokenSilent.mockRejectedValue(
       new InteractionRequiredAuthError('interaction_required'),
     );
+
     server.use(
       http.get(endpoint('/me/drive/special/approot:/notes:/children'), () =>
         HttpResponse.json({ value: [] }),
@@ -154,6 +174,7 @@ describe('OneDriveTransport', () => {
   it('uses popup authentication when there is no account', async () => {
     msal.getAllAccounts.mockReturnValue([]);
     msal.acquireTokenSilent.mockRejectedValue(new Error('no account'));
+
     server.use(
       http.get(endpoint('/me/drive/special/approot:/notes:/children'), () =>
         HttpResponse.json({ value: [] }),
@@ -161,6 +182,7 @@ describe('OneDriveTransport', () => {
     );
 
     await new OneDriveTransport('client').list('notes');
+
     expect(msal.acquireTokenPopup).toHaveBeenCalled();
   });
 
@@ -170,29 +192,36 @@ describe('OneDriveTransport', () => {
         endpoint('/me/drive/special/approot:/notes/a.json:/content'),
         () => HttpResponse.json({ id: 'a' }),
       ),
+
       http.post(endpoint('/me/drive/special/approot/children'), () =>
         HttpResponse.json({}),
       ),
+
       http.put(
         endpoint('/me/drive/special/approot:/notes/a.json:/content'),
         () => HttpResponse.json(item),
       ),
+
       http.get(endpoint('/me/drive/special/approot:/notes/a.json'), () =>
         HttpResponse.json({ id: 'file-id' }),
       ),
+
       http.get(endpoint('/me/drive/special/approot:/notes'), () =>
         HttpResponse.json({ id: 'dir-id' }),
       ),
+
       http.delete(
         /^https:\/\/graph\.microsoft\.com\/v1\.0\/me\/drive\/items\/.+$/,
         () => new HttpResponse(null, { status: 204 }),
       ),
     );
+
     const transport = new OneDriveTransport('client');
 
     await expect(
       transport.delete('notes', 'a.json', true),
     ).resolves.toBeUndefined();
+
     await expect(transport.delete('notes', 'a.json')).resolves.toBeUndefined();
     await expect(transport.deleteAll('notes')).resolves.toBeUndefined();
   });
@@ -203,11 +232,13 @@ describe('OneDriveTransport', () => {
         endpoint('/me/drive/special/approot:/notes/a.json'),
         () => new HttpResponse(null, { status: 404 }),
       ),
+
       http.get(
         endpoint('/me/drive/special/approot:/notes'),
         () => new HttpResponse(null, { status: 404 }),
       ),
     );
+
     const transport = new OneDriveTransport('client');
 
     await expect(transport.delete('notes', 'a.json')).resolves.toBeUndefined();
