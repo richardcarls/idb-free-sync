@@ -1,0 +1,59 @@
+name: Bug report
+description: Report reproducible incorrect behavior
+title: 'fix: '
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: Do not include tokens, passwords, client secrets, or private data.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What happened, and what did you expect?
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal reproduction
+      description: Provide code or a repository that reproduces the issue.
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: free-sync version
+    validations:
+      required: true
+
+  - type: input
+    id: environment
+    attributes:
+      label: Browser and operating system
+    validations:
+      required: true
+
+  - type: dropdown
+    id: transport
+    attributes:
+      label: Transport
+      options:
+        - OPFS
+        - Google Drive
+        - OneDrive
+        - Dropbox
+        - WebDAV
+        - NullTransport
+        - Custom transport
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional context

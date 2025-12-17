@@ -1,6 +1,7 @@
-import { Dropbox, type files } from 'dropbox';
+import { type files } from 'dropbox';
 
 import { type SyncTransport, type SyncFileInfo } from './SyncTransport';
+import { createDropboxClient } from './internal/dropboxAdapter';
 
 const APP_PATH = '/Apps/RecipeTome';
 
@@ -17,10 +18,8 @@ export class DropboxTransport implements SyncTransport {
   readonly scopes: string[] = [];
 
   /** Resolves a Dropbox SDK client for the current access token. */
-  private get client(): Dropbox {
-    const token = localStorage.getItem('dropboxAccessToken') ?? '';
-
-    return new Dropbox({ accessToken: token });
+  private get client() {
+    return createDropboxClient();
   }
 
   /** Lists metadata for every file in a Dropbox sync folder. */

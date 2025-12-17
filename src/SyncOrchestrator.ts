@@ -26,6 +26,12 @@ export interface SyncOptions<T extends SyncRecord = SyncRecord> {
 
   /** Record field whose truthy value marks a downloaded record as deleted. */
   softDeleteField?: keyof T;
+
+  /**
+   * Record field containing the local modification date. Defaults to
+   * `modified` and has no effect when `resolve` is provided.
+   */
+  modifiedField?: keyof T;
 }
 
 /**
@@ -65,6 +71,36 @@ function syncKeyToKey(syncKey: string): string {
   return syncKey.replace('.json', '');
 }
 
+/** Creates the default timestamp resolver for a custom modification field. */
+function buildResolver<T extends SyncRecord>(
+  modifiedField?: keyof T,
+): ConflictResolverCB<T> {
+  if (!modifiedField) {
+    return defaultResolver as ConflictResolverCB<T>;
+  }
+
+  return (local, remote) => {
+    if (remote.deleted) {
+      return 'delete';
+    }
+
+    if (!remote.modified) {
+      return 'keep-local';
+    }
+
+    const localMod = local[modifiedField] as Date | undefined;
+    if (!localMod) {
+      return 'keep-remote';
+    }
+
+    return localMod > remote.modified
+      ? 'keep-local'
+      : localMod < remote.modified
+        ? 'keep-remote'
+        : 'ignore';
+  };
+}
+
 /**
  * Reconciles every record in an IndexedDB object store with the transport.
  *
@@ -75,7 +111,7 @@ function syncKeyToKey(syncKey: string): string {
  * @param db - the opened IndexDB database
  * @param transport - transport for sync operation
  * @param storeName - the IndexedDB store name / transport folder
- * @param options - for conflict-resolution and soft-delete behavior
+ * @param options - for conflict-resolution, timestamps, and soft-delete behavior
  */
 export async function syncStore<T extends SyncRecord>(
   db: IDBPDatabase<any>,
@@ -83,7 +119,7 @@ export async function syncStore<T extends SyncRecord>(
   storeName: string,
   options?: SyncOptions<T>,
 ): Promise<void> {
-  const resolve = options?.resolve ?? defaultResolver;
+  const resolve = options?.resolve ?? buildResolver(options?.modifiedField);
   const softDeleteField = options?.softDeleteField;
 
   const remoteItems = await transport.list(storeName);

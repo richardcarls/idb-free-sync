@@ -3,6 +3,7 @@ import dts from 'vite-plugin-dts';
 
 export default defineConfig({
   cacheDir: '.yarn/.vite-cache',
+
   build: {
     lib: {
       entry: 'src/index.ts',
@@ -14,5 +15,6 @@ export default defineConfig({
       external: ['idb'],
     },
   },
-  plugins: [dts({ insertTypesEntry: true })],
+
+  plugins: [dts({ include: ['src/*.ts'], insertTypesEntry: true })],
 });

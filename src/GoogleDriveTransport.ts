@@ -3,6 +3,8 @@
 /// <reference types="google.accounts" />
 
 import { type SyncTransport, type SyncFileInfo } from './SyncTransport';
+import { getGoogleClient } from './internal/googleAdapter';
+import { request } from './internal/request';
 
 type DriveFile = gapi.client.drive.File;
 type DriveFileWithId = Omit<DriveFile, 'id'> & { id: string };
@@ -117,7 +119,7 @@ export class GoogleDriveTransport implements SyncTransport {
       ? `https://www.googleapis.com/upload/drive/v3/files/${existingId}?uploadType=multipart&fields=id,version,name,modifiedTime,createdTime,md5Checksum,size,properties`
       : `https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,version,name,modifiedTime,createdTime,md5Checksum,size,properties`;
 
-    const response = await fetch(url, {
+    const response = await request(url, {
       method: existingId ? 'PATCH' : 'POST',
       headers: { Authorization: `Bearer ${gapi.auth.getToken().access_token}` },
       body: formData,
@@ -211,41 +213,7 @@ export class GoogleDriveTransport implements SyncTransport {
 
   /** Resolves an initialized and authenticated Google API client. */
   private get client(): Promise<typeof gapi.client> {
-    if (gapi != null && gapi.client != null) {
-      return Promise.resolve(gapi.client);
-    }
-
-    return new Promise((resolve) => {
-      const timeout = setTimeout(() => {
-        if (google !== undefined && gapi !== undefined) {
-          clearTimeout(timeout);
-
-          const tokenClient = google.accounts.oauth2.initTokenClient({
-            client_id: this.clientId,
-            scope: this.scopes.join(' '),
-            prompt: '',
-            login_hint: window.localStorage.getItem('syncUserId') ?? undefined,
-
-            callback: (tokenResponse: google.accounts.oauth2.TokenResponse) => {
-              gapi.load('client', async () => {
-                await gapi.client.init({
-                  discoveryDocs: [
-                    'https://www.googleapis.com/discovery/v1/apis/drive/v3/rest',
-                  ],
-                });
-                if (tokenResponse && tokenResponse.access_token) {
-                  gapi.auth.setToken(tokenResponse);
-                }
-
-                resolve(gapi.client);
-              });
-            },
-          });
-
-          tokenClient.requestAccessToken();
-        }
-      }, 1000);
-    });
+    return getGoogleClient(this.clientId, this.scopes);
   }
 
   /** Finds a sync folder in app data, optionally creating it when absent. */
