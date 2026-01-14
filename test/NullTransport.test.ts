@@ -1,14 +1,31 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { NullTransport } from '../src/NullTransport';
 import {
   isBlobSyncTransport,
   type BlobSyncTransport,
 } from '../src/BlobSyncTransport';
+import type { SyncTransport } from '../src/SyncTransport';
 
 describe('NullTransport', () => {
   it('satisfies BlobSyncTransport', () => {
     expect(isBlobSyncTransport(new NullTransport())).toBe(true);
+  });
+
+  it('rejects partial blob transport implementations', () => {
+    const transport: SyncTransport & { putBlob: ReturnType<typeof vi.fn> } = {
+      provider: 'partial',
+      scopes: [],
+      list: vi.fn(),
+      get: vi.fn(),
+      put: vi.fn(),
+      delete: vi.fn(),
+      deleteAll: vi.fn(),
+      count: vi.fn(),
+      putBlob: vi.fn(),
+    };
+
+    expect(isBlobSyncTransport(transport)).toBe(false);
   });
 
   it('returns empty values from all read methods', async () => {

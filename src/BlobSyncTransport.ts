@@ -37,5 +37,12 @@ export interface BlobSyncTransport extends SyncTransport {
 export function isBlobSyncTransport(
   transport: SyncTransport,
 ): transport is BlobSyncTransport {
-  return typeof (transport as BlobSyncTransport).putBlob === 'function';
+  const candidate = transport as BlobSyncTransport;
+
+  return (
+    typeof candidate.putBlob === 'function' &&
+    typeof candidate.getBlob === 'function' &&
+    typeof candidate.listBlobs === 'function' &&
+    typeof candidate.deleteBlob === 'function'
+  );
 }
