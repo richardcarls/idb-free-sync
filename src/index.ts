@@ -1,5 +1,7 @@
 export * from './SyncOrchestrator';
 export * from './SyncTransport';
+export * from './BlobSyncTransport';
+export * from './BlobStore';
 export * from './NullTransport';
 export * from './OPFSTransport';
 export * from './GoogleDriveTransport';

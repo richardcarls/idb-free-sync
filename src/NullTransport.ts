@@ -1,42 +1,46 @@
-import { type SyncTransport, type SyncFileInfo } from './SyncTransport';
+import { type SyncFileInfo } from './SyncTransport';
+import { type BlobSyncTransport } from './BlobSyncTransport';
 
 /**
- * No-op transport for disabling remote persistence while preserving the
- * {@link SyncTransport} interface.
+ * No-op transport. Implements {@link BlobSyncTransport} without persisting
+ * anything. Useful for disabling sync without changing application logic, and
+ * for use with `blobFields` in tests or offline-only builds.
  */
-export class NullTransport implements SyncTransport {
+export class NullTransport implements BlobSyncTransport {
   readonly provider = 'none';
-
-  /** The null transport requires no OAuth scopes. */
   readonly scopes: string[] = [];
 
-  /** Returns an empty remote file listing. */
   async list(): Promise<SyncFileInfo[]> {
     return [];
   }
 
-  /** Always reports that the requested remote value does not exist. */
   async get(): Promise<undefined> {
     return undefined;
   }
 
-  /**
-   * Reports successful metadata without persisting the supplied value.
-   *
-   * @typeParam _T - ignored record type
-   */
   async put<_T>(_storeName: string, syncKey: string): Promise<SyncFileInfo> {
     return { id: syncKey, syncKey };
   }
 
-  /** Performs no deletion. */
   async delete(): Promise<void> {}
 
-  /** Performs no deletion. */
   async deleteAll(): Promise<void> {}
 
-  /** Always reports zero remote items. */
   async count(): Promise<number> {
     return 0;
   }
+
+  async putBlob(_storeName: string, blobKey: string): Promise<SyncFileInfo> {
+    return { id: blobKey, syncKey: blobKey };
+  }
+
+  async getBlob(): Promise<undefined> {
+    return undefined;
+  }
+
+  async listBlobs(): Promise<SyncFileInfo[]> {
+    return [];
+  }
+
+  async deleteBlob(): Promise<void> {}
 }
