@@ -127,9 +127,11 @@ describe('DropboxTransport', () => {
 
   it('getBlob returns the fileBlob and undefined on failure', async () => {
     const blob = new Blob(['img'], { type: 'image/jpeg' });
+
     client.filesDownload.mockResolvedValueOnce({
       result: { ...file, fileBlob: blob },
     });
+
     const transport = new DropboxTransport();
 
     expect(await transport.getBlob('notes', 'img.jpg')).toBe(blob);
@@ -140,9 +142,11 @@ describe('DropboxTransport', () => {
 
   it('listBlobs lists the blobs folder and treats failures as empty', async () => {
     const blobFile = { ...file, name: 'img.jpg' };
+
     client.filesListFolder.mockResolvedValueOnce({
       result: { entries: [blobFile] },
     });
+
     const transport = new DropboxTransport();
 
     const result = await transport.listBlobs('notes');
@@ -158,6 +162,7 @@ describe('DropboxTransport', () => {
     await expect(
       transport.deleteBlob('notes', 'img.jpg'),
     ).resolves.toBeUndefined();
+
     expect(client.filesDeleteV2).toHaveBeenCalledWith({
       path: '/Apps/RecipeTome/notes-blobs/img.jpg',
     });

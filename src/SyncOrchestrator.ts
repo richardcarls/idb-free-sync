@@ -52,6 +52,7 @@ export type ConflictResolverCB<T extends SyncRecord = SyncRecord> =
 export interface BlobFieldConfig {
   /** Local storage backend for the binary blob. */
   blobStore: BlobStore;
+
   /**
    * Extract a stable blob key from the local field value. When omitted the
    * raw field value is used as the key (identity).
@@ -59,6 +60,7 @@ export interface BlobFieldConfig {
    * @example (url) => url.replace('/_cache/', '')  // '/_cache/abc' → 'abc'
    */
   keyFromValue?: (value: string) => string;
+
   /**
    * Reconstruct the local field value from a blob key. When omitted the raw
    * key is stored in the local record (identity).
@@ -66,6 +68,7 @@ export interface BlobFieldConfig {
    * @example (key) => `/_cache/${key}`  // 'abc' → '/_cache/abc'
    */
   valueFromKey?: (key: string) => string;
+
   /** MIME type hint passed to the transport on upload. */
   contentType?: string;
 }
@@ -113,10 +116,20 @@ export interface SyncOptions<T extends SyncRecord = SyncRecord> {
  * different field without replacing the entire resolver.
  */
 export const defaultResolve: ResolveConflict = (local, remote) => {
-  if (remote.deleted) return 'delete';
-  if (!remote.modified) return 'keep-local';
+  if (remote.deleted) {
+    return 'delete';
+  }
+
+  if (!remote.modified) {
+    return 'keep-local';
+  }
+
   const localMod = local.modified;
-  if (!localMod) return 'keep-remote';
+
+  if (!localMod) {
+    return 'keep-remote';
+  }
+
   return localMod > remote.modified
     ? 'keep-local'
     : localMod < remote.modified
@@ -138,12 +151,25 @@ function syncKeyToKey(syncKey: string): string {
 function buildResolver<T extends SyncRecord>(
   modifiedField?: keyof T,
 ): ResolveConflict<T> {
-  if (!modifiedField) return defaultResolve as ResolveConflict<T>;
+  if (!modifiedField) {
+    return defaultResolve as ResolveConflict<T>;
+  }
+
   return (local, remote) => {
-    if (remote.deleted) return 'delete';
-    if (!remote.modified) return 'keep-local';
+    if (remote.deleted) {
+      return 'delete';
+    }
+
+    if (!remote.modified) {
+      return 'keep-local';
+    }
+
     const localMod = local[modifiedField] as Date | undefined;
-    if (!localMod) return 'keep-remote';
+
+    if (!localMod) {
+      return 'keep-remote';
+    }
+
     return localMod > remote.modified
       ? 'keep-local'
       : localMod < remote.modified
@@ -168,12 +194,16 @@ async function uploadBlobFields<T extends SyncRecord>(
   uploadedKeys: Set<string>,
 ): Promise<T> {
   const out = { ...record } as T;
+
   for (const [field, config] of Object.entries(blobFields) as [
     string,
     BlobFieldConfig,
   ][]) {
     const rawValue = record[field];
-    if (typeof rawValue !== 'string' || !rawValue) continue;
+
+    if (typeof rawValue !== 'string' || !rawValue) {
+      continue;
+    }
 
     const blobKey = config.keyFromValue
       ? config.keyFromValue(rawValue)
@@ -181,6 +211,7 @@ async function uploadBlobFields<T extends SyncRecord>(
 
     if (!uploadedKeys.has(blobKey)) {
       const blob = await config.blobStore.get(blobKey);
+
       if (blob) {
         await transport.putBlob(storeName, blobKey, blob, config.contentType);
         uploadedKeys.add(blobKey);
@@ -204,12 +235,16 @@ async function downloadBlobFields<T extends SyncRecord>(
   blobFields: NonNullable<SyncOptions<T>['blobFields']>,
 ): Promise<T> {
   const out = { ...record } as T;
+
   for (const [field, config] of Object.entries(blobFields) as [
     string,
     BlobFieldConfig,
   ][]) {
     const blobKey = record[field];
-    if (typeof blobKey !== 'string' || !blobKey) continue;
+
+    if (typeof blobKey !== 'string' || !blobKey) {
+      continue;
+    }
 
     if (!(await config.blobStore.has(blobKey))) {
       const blob = await transport.getBlob(storeName, blobKey);
@@ -275,6 +310,7 @@ export async function syncStore<T extends SyncRecord>(
 
   // 1. List remote items (and remote blobs if needed)
   const remoteItems = await transport.list(storeName);
+
   // Track blob keys already uploaded this cycle to avoid redundant pushes
   const uploadedBlobKeys = new Set<string>(
     blobTransport
@@ -289,6 +325,7 @@ export async function syncStore<T extends SyncRecord>(
   const matchedRemoteKeys = new Set<string>();
 
   const tx = db.transaction(storeName, 'readwrite');
+
   for await (const cursor of tx.store) {
     const syncKey = keyToSyncKey(cursor.primaryKey as string);
     const remoteItem = remoteItems.find((r) => r.syncKey === syncKey);
@@ -308,13 +345,16 @@ export async function syncStore<T extends SyncRecord>(
       case 'keep-remote':
         fromRemoteQueue.push(cursor.primaryKey as string);
         break;
+
       case 'keep-local':
         toRemoteQueue.push(cursor.primaryKey as string);
         break;
+
       case 'delete':
         deleteQueue.push(cursor.primaryKey as string);
         cursor.delete();
         break;
+
       case 'ignore':
         break;
     }
@@ -324,9 +364,11 @@ export async function syncStore<T extends SyncRecord>(
   const newRemoteKeys = remoteItems
     .filter((r) => !matchedRemoteKeys.has(r.syncKey))
     .map((r) => syncKeyToKey(r.syncKey));
+
   fromRemoteQueue.push(...newRemoteKeys);
 
   // 4. Execute queues in parallel
+
   // TODO: add onError callback option to propagate queue failures to consumers
   await Promise.allSettled([
     ...fromRemoteQueue.map(async (uuid) => {

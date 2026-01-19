@@ -65,6 +65,7 @@ describe('OneDriveTransport', () => {
         endpoint('/me/drive/special/approot:/notes:/children'),
         () => new HttpResponse(null, { status: 404 }),
       ),
+
       http.get(
         endpoint('/me/drive/special/approot:/notes/a.json:/content'),
         () => new HttpResponse(null, { status: 404 }),
@@ -82,13 +83,16 @@ describe('OneDriveTransport', () => {
         endpoint('/me/drive/special/approot:/notes:/children'),
         () => new HttpResponse(null, { status: 500 }),
       ),
+
       http.get(
         endpoint('/me/drive/special/approot:/notes/a.json:/content'),
         () => new HttpResponse(null, { status: 500 }),
       ),
+
       http.post(endpoint('/me/drive/special/approot/children'), () =>
         HttpResponse.json({}),
       ),
+
       http.put(
         endpoint('/me/drive/special/approot:/notes/a.json:/content'),
         () => new HttpResponse(null, { status: 500 }),
@@ -115,6 +119,7 @@ describe('OneDriveTransport', () => {
           return HttpResponse.json({});
         },
       ),
+
       http.put(
         endpoint('/me/drive/special/approot:/notes/a.json:/content'),
         ({ request }) => {
@@ -170,19 +175,24 @@ describe('OneDriveTransport', () => {
         endpoint('/me/drive/special/approot:/notes/a.json:/content'),
         () => HttpResponse.json({ id: 'a' }),
       ),
+
       http.post(endpoint('/me/drive/special/approot/children'), () =>
         HttpResponse.json({}),
       ),
+
       http.put(
         endpoint('/me/drive/special/approot:/notes/a.json:/content'),
         () => HttpResponse.json(item),
       ),
+
       http.get(endpoint('/me/drive/special/approot:/notes/a.json'), () =>
         HttpResponse.json({ id: 'file-id' }),
       ),
+
       http.get(endpoint('/me/drive/special/approot:/notes'), () =>
         HttpResponse.json({ id: 'dir-id' }),
       ),
+
       http.delete(
         /^https:\/\/graph\.microsoft\.com\/v1\.0\/me\/drive\/items\/.+$/,
         () => new HttpResponse(null, { status: 204 }),
@@ -203,6 +213,7 @@ describe('OneDriveTransport', () => {
         endpoint('/me/drive/special/approot:/notes/a.json'),
         () => new HttpResponse(null, { status: 404 }),
       ),
+
       http.get(
         endpoint('/me/drive/special/approot:/notes'),
         () => new HttpResponse(null, { status: 404 }),
@@ -216,15 +227,18 @@ describe('OneDriveTransport', () => {
 
   it('putBlob ensures blob directory and uploads binary content', async () => {
     const blobItem = { ...item, name: 'img.jpg' };
+
     server.use(
       http.post(endpoint('/me/drive/special/approot/children'), () =>
         HttpResponse.json({}),
       ),
+
       http.put(
         endpoint('/me/drive/special/approot:/notes-blobs/img.jpg:/content'),
         () => HttpResponse.json(blobItem),
       ),
     );
+
     const transport = new OneDriveTransport('client');
     const blob = new Blob(['img'], { type: 'image/jpeg' });
 
@@ -244,11 +258,13 @@ describe('OneDriveTransport', () => {
         endpoint('/me/drive/special/approot:/notes-blobs/img.jpg:/content'),
         () => new HttpResponse(new Uint8Array([1, 2, 3])),
       ),
+
       http.get(
         endpoint('/me/drive/special/approot:/notes-blobs/missing.jpg:/content'),
         () => new HttpResponse(null, { status: 404 }),
       ),
     );
+
     const transport = new OneDriveTransport('client');
 
     const result = await transport.getBlob('notes', 'img.jpg');
@@ -259,16 +275,19 @@ describe('OneDriveTransport', () => {
 
   it('listBlobs returns blobs and empty array for missing folder', async () => {
     const blobItem = { ...item, name: 'img.jpg' };
+
     server.use(
       http.get(
         endpoint('/me/drive/special/approot:/notes-blobs:/children'),
         () => HttpResponse.json({ value: [blobItem] }),
       ),
+
       http.get(
         endpoint('/me/drive/special/approot:/empty-blobs:/children'),
         () => new HttpResponse(null, { status: 404 }),
       ),
     );
+
     const transport = new OneDriveTransport('client');
 
     const result = await transport.listBlobs('notes');
@@ -282,20 +301,24 @@ describe('OneDriveTransport', () => {
       http.get(endpoint('/me/drive/special/approot:/notes-blobs/img.jpg'), () =>
         HttpResponse.json({ id: 'blob-file-id' }),
       ),
+
       http.delete(
         /^https:\/\/graph\.microsoft\.com\/v1\.0\/me\/drive\/items\/.+$/,
         () => new HttpResponse(null, { status: 204 }),
       ),
+
       http.get(
         endpoint('/me/drive/special/approot:/notes-blobs/missing.jpg'),
         () => new HttpResponse(null, { status: 404 }),
       ),
     );
+
     const transport = new OneDriveTransport('client');
 
     await expect(
       transport.deleteBlob('notes', 'img.jpg'),
     ).resolves.toBeUndefined();
+
     await expect(
       transport.deleteBlob('notes', 'missing.jpg'),
     ).resolves.toBeUndefined();
@@ -309,6 +332,7 @@ describe('OneDriveTransport', () => {
         }),
       ),
     );
+
     expect(await new OneDriveTransport('client').count('notes')).toBe(2);
   });
 
@@ -317,19 +341,23 @@ describe('OneDriveTransport', () => {
       http.post(endpoint('/me/drive/special/approot/children'), () =>
         HttpResponse.json({}),
       ),
+
       http.put(
         endpoint('/me/drive/special/approot:/notes-blobs/img.jpg:/content'),
         () => new HttpResponse(null, { status: 500 }),
       ),
+
       http.get(
         endpoint('/me/drive/special/approot:/notes-blobs/img.jpg:/content'),
         () => new HttpResponse(null, { status: 500 }),
       ),
+
       http.get(
         endpoint('/me/drive/special/approot:/notes-blobs:/children'),
         () => new HttpResponse(null, { status: 500 }),
       ),
     );
+
     const transport = new OneDriveTransport('client');
     const blob = new Blob(['img']);
 
@@ -349,18 +377,22 @@ describe('OneDriveTransport', () => {
       http.get(endpoint('/me/drive/special/approot:/notes:/children'), () =>
         HttpResponse.json({ value: [item] }),
       ),
+
       http.get(
         endpoint('/me/drive/special/approot:/notes/a.json:/content'),
         () => HttpResponse.json({ id: 'a', title: 'A' }),
       ),
+
       http.post(endpoint('/me/drive/special/approot/children'), () =>
         HttpResponse.json({}),
       ),
+
       http.put(
         endpoint('/me/drive/special/approot:/notes/a.json:/content'),
         () => HttpResponse.json(item),
       ),
     );
+
     await expect(
       new OneDriveTransport('client').deleteAll('notes', true),
     ).resolves.toBeUndefined();

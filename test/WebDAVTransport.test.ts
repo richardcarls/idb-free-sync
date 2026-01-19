@@ -29,6 +29,7 @@ const stat = {
 
 beforeEach(() => {
   vi.clearAllMocks();
+
   createWebDAVClient.mockReturnValue(client);
   client.deleteFile.mockResolvedValue(undefined);
   client.createDirectory.mockResolvedValue(undefined);
@@ -37,7 +38,9 @@ beforeEach(() => {
 describe('WebDAVTransport', () => {
   it('passes configuration to its private adapter', () => {
     const config = { url: 'https://dav.example', token: 'token' };
+
     new WebDAVTransport(config);
+
     expect(createWebDAVClient).toHaveBeenCalledWith(config);
   });
 
@@ -46,6 +49,7 @@ describe('WebDAVTransport', () => {
       stat,
       { ...stat, type: 'directory' },
     ]);
+
     const transport = new WebDAVTransport({ url: 'https://dav.example' });
 
     expect(await transport.list('notes')).toEqual([
@@ -58,6 +62,7 @@ describe('WebDAVTransport', () => {
 
   it('gets JSON and treats failures as missing', async () => {
     client.getFileContents.mockResolvedValueOnce('{"id":"a"}');
+
     const transport = new WebDAVTransport({ url: 'https://dav.example' });
 
     expect(await transport.get('notes', 'a.json')).toEqual({ id: 'a' });
@@ -68,8 +73,8 @@ describe('WebDAVTransport', () => {
 
   it('ensures directories, uploads JSON, and maps metadata', async () => {
     client.stat.mockResolvedValue(stat);
-    const transport = new WebDAVTransport({ url: 'https://dav.example' });
 
+    const transport = new WebDAVTransport({ url: 'https://dav.example' });
     const result = await transport.put('notes', 'a.json', { id: 'a' });
 
     expect(client.createDirectory).toHaveBeenCalledTimes(2);
@@ -78,6 +83,7 @@ describe('WebDAVTransport', () => {
       '{\n  "id": "a"\n}',
       { overwrite: true },
     );
+
     expect(result).toMatchObject({ syncKey: 'a.json', size: 12 });
     expectSyncFileInfo(result, 'a.json');
   });
@@ -87,6 +93,7 @@ describe('WebDAVTransport', () => {
     client.stat.mockResolvedValue(stat);
     client.getDirectoryContents.mockResolvedValue([stat]);
     client.deleteFile.mockRejectedValue(new Error('already gone'));
+
     const transport = new WebDAVTransport({ url: 'https://dav.example' });
 
     await expect(
@@ -106,7 +113,9 @@ describe('WebDAVTransport', () => {
       lastmod: '2026-01-02T00:00:00Z',
       size: 42,
     };
+
     client.stat.mockResolvedValue(blobStat);
+
     const transport = new WebDAVTransport({ url: 'https://dav.example' });
     const blob = new Blob(['img'], { type: 'image/jpeg' });
 
@@ -127,7 +136,9 @@ describe('WebDAVTransport', () => {
 
   it('getBlob returns Blob on success and undefined on failure', async () => {
     const buffer = new ArrayBuffer(4);
+
     client.getFileContents.mockResolvedValueOnce(buffer);
+
     const transport = new WebDAVTransport({ url: 'https://dav.example' });
 
     const result = await transport.getBlob('notes', 'img.jpg');
@@ -145,10 +156,12 @@ describe('WebDAVTransport', () => {
       lastmod: '2026-01-02T00:00:00Z',
       size: 42,
     };
+
     client.getDirectoryContents.mockResolvedValueOnce([
       blobStat,
       { ...blobStat, type: 'directory' },
     ]);
+
     const transport = new WebDAVTransport({ url: 'https://dav.example' });
 
     expect(await transport.listBlobs('notes')).toEqual([
@@ -165,11 +178,13 @@ describe('WebDAVTransport', () => {
     await expect(
       transport.deleteBlob('notes', 'img.jpg'),
     ).resolves.toBeUndefined();
+
     expect(client.deleteFile).toHaveBeenCalledWith(
       '/RecipeTome/notes-blobs/img.jpg',
     );
 
     client.deleteFile.mockRejectedValueOnce(new Error('already gone'));
+
     await expect(
       transport.deleteBlob('notes', 'missing.jpg'),
     ).resolves.toBeUndefined();

@@ -201,8 +201,10 @@ const exists = await imageStore.has('sha256-abc123');
 ```ts
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
+
   if (url.pathname.startsWith('/_cache/')) {
     const key = url.pathname.slice('/_cache/'.length);
+
     event.respondWith(
       navigator.storage
         .getDirectory()

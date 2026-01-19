@@ -175,10 +175,14 @@ describe('GoogleDriveTransport', () => {
   it('putBlob uploads to the blobs folder and maps metadata', async () => {
     const blobFolder = { id: 'blob-folder-id', name: 'notes-blobs' };
     const blobFile = { ...file, name: 'img.jpg' };
-    // getDriveFolder for notes-blobs (exists), listRawBlobFiles (empty for new upload)
+
     files.list
-      .mockResolvedValueOnce({ result: { files: [blobFolder] } }) // getBlobFolder
-      .mockResolvedValueOnce({ result: { files: [] } }); // listRawBlobFiles
+      // getBlobFolder
+      .mockResolvedValueOnce({ result: { files: [blobFolder] } })
+
+      // listRawBlobFiles
+      .mockResolvedValueOnce({ result: { files: [] } });
+
     request.mockResolvedValue({ json: () => Promise.resolve(blobFile) });
     const transport = new GoogleDriveTransport('client');
     const blob = new Blob(['img'], { type: 'image/jpeg' });
@@ -194,21 +198,27 @@ describe('GoogleDriveTransport', () => {
       expect.stringContaining('upload/drive/v3/files?'),
       expect.objectContaining({ method: 'POST', body: expect.any(FormData) }),
     );
+
     expect(result).toMatchObject({ syncKey: 'img.jpg' });
   });
 
   it('putBlob patches an existing blob when one already exists', async () => {
     const blobFolder = { id: 'blob-folder-id', name: 'notes-blobs' };
     const existingBlob = { ...file, id: 'existing-blob-id', name: 'img.jpg' };
-    // putBlob calls getBlobFolder (1 files.list), then listRawBlobFiles which
-    // calls getBlobFolder again (1 files.list) + files.list for blob entries
     files.list
-      .mockResolvedValueOnce({ result: { files: [blobFolder] } }) // getBlobFolder (putBlob)
-      .mockResolvedValueOnce({ result: { files: [blobFolder] } }) // getBlobFolder (listRawBlobFiles)
-      .mockResolvedValueOnce({ result: { files: [existingBlob] } }); // blob entries
+      // getBlobFolder (putBlob)
+      .mockResolvedValueOnce({ result: { files: [blobFolder] } })
+
+      // getBlobFolder (listRawBlobFiles)
+      .mockResolvedValueOnce({ result: { files: [blobFolder] } })
+
+      // blob entries
+      .mockResolvedValueOnce({ result: { files: [existingBlob] } });
+
     request.mockResolvedValue({
       json: () => Promise.resolve({ ...file, name: 'img.jpg' }),
     });
+
     const transport = new GoogleDriveTransport('client');
     const blob = new Blob(['img-updated'], { type: 'image/jpeg' });
 
@@ -218,34 +228,42 @@ describe('GoogleDriveTransport', () => {
       expect.stringContaining('/existing-blob-id?'),
       expect.objectContaining({ method: 'PATCH', body: expect.any(FormData) }),
     );
+
     expect(result).toMatchObject({ syncKey: 'img.jpg' });
   });
 
   it('getBlob returns a Blob and undefined for missing files', async () => {
     const blobFolder = { id: 'blob-folder-id', name: 'notes-blobs' };
     const blobFile = { ...file, name: 'img.jpg' };
+
     files.list
       .mockResolvedValueOnce({ result: { files: [blobFolder] } })
       .mockResolvedValueOnce({ result: { files: [blobFile] } });
+
     files.get.mockResolvedValue({ body: 'binary' });
+
     const transport = new GoogleDriveTransport('client');
 
     const result = await transport.getBlob('notes', 'img.jpg');
+
     expect(result).toBeInstanceOf(Blob);
 
     // Missing blob (getBlobFolder returns empty → tries to find file, returns undefined)
     files.list
       .mockResolvedValueOnce({ result: { files: [blobFolder] } })
       .mockResolvedValueOnce({ result: { files: [] } });
+
     expect(await transport.getBlob('notes', 'missing.jpg')).toBeUndefined();
   });
 
   it('listBlobs returns blobs and empty array on missing folder', async () => {
     const blobFolder = { id: 'blob-folder-id', name: 'notes-blobs' };
     const blobFile = { ...file, name: 'img.jpg' };
+
     files.list
       .mockResolvedValueOnce({ result: { files: [blobFolder] } })
       .mockResolvedValueOnce({ result: { files: [blobFile] } });
+
     const transport = new GoogleDriveTransport('client');
 
     const result = await transport.listBlobs('notes');
@@ -259,9 +277,11 @@ describe('GoogleDriveTransport', () => {
   it('deleteBlob deletes by file ID and ignores missing blobs', async () => {
     const blobFolder = { id: 'blob-folder-id', name: 'notes-blobs' };
     const blobFile = { ...file, name: 'img.jpg' };
+
     files.list
       .mockResolvedValueOnce({ result: { files: [blobFolder] } })
       .mockResolvedValueOnce({ result: { files: [blobFile] } });
+
     const transport = new GoogleDriveTransport('client');
 
     await transport.deleteBlob('notes', 'img.jpg');
@@ -271,7 +291,9 @@ describe('GoogleDriveTransport', () => {
     files.list
       .mockResolvedValueOnce({ result: { files: [blobFolder] } })
       .mockResolvedValueOnce({ result: { files: [] } });
+
     await transport.deleteBlob('notes', 'missing.jpg');
+
     expect(files.delete).toHaveBeenCalledTimes(1);
   });
 });

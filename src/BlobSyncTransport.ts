@@ -32,7 +32,7 @@ export interface BlobSyncTransport extends SyncTransport {
 
 /**
  * Returns `true` when `transport` implements {@link BlobSyncTransport}.
- * Use this guard before accessing blob methods on an unknown transport.
+ * Use this type guard before accessing blob methods on an unknown transport.
  */
 export function isBlobSyncTransport(
   transport: SyncTransport,

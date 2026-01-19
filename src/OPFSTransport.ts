@@ -24,6 +24,7 @@ export class OPFSTransport implements SyncTransport {
     }
 
     const files: SyncFileInfo[] = [];
+
     for await (const [name, handle] of storeRoot.entries()) {
       if (handle.kind === 'file') {
         const file = await (await storeRoot.getFileHandle(name)).getFile();

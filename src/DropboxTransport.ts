@@ -49,7 +49,9 @@ export class DropboxTransport implements BlobSyncTransport {
         path: `${APP_PATH}/${storeName}/${syncKey}`,
       });
       const meta = response.result as files.FileMetadata & { fileBlob?: Blob };
-      if (!meta.fileBlob) return undefined;
+      if (!meta.fileBlob) {
+        return undefined;
+      }
       const text = await meta.fileBlob.text();
       return JSON.parse(text) as T;
     } catch {
@@ -116,8 +118,6 @@ export class DropboxTransport implements BlobSyncTransport {
     return (await this.list(storeName)).length;
   }
 
-  // --- Blob methods ---
-
   async putBlob(
     storeName: string,
     blobKey: string,
@@ -130,6 +130,7 @@ export class DropboxTransport implements BlobSyncTransport {
     });
 
     const file = response.result;
+
     return {
       id: file.id,
       syncKey: file.name,
@@ -146,6 +147,7 @@ export class DropboxTransport implements BlobSyncTransport {
         path: `${APP_PATH}/${storeName}-blobs/${blobKey}`,
       });
       const meta = response.result as files.FileMetadata & { fileBlob?: Blob };
+
       return meta.fileBlob;
     } catch {
       return undefined;
@@ -154,8 +156,10 @@ export class DropboxTransport implements BlobSyncTransport {
 
   async listBlobs(storeName: string): Promise<SyncFileInfo[]> {
     const path = `${APP_PATH}/${storeName}-blobs`;
+
     try {
       const response = await this.client.filesListFolder({ path });
+
       return (response.result.entries ?? [])
         .filter((e): e is files.FileMetadataReference => e['.tag'] === 'file')
         .map((file) => ({

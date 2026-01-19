@@ -32,19 +32,25 @@ export class GoogleDriveTransport implements BlobSyncTransport {
       q: `'${folder.id}' in parents`,
       spaces: 'appDataFolder',
     });
+
     return (result.result.files ?? []).map((file) => this.toSyncFileInfo(file));
   }
 
   async get<T>(storeName: string, syncKey: string): Promise<T | undefined> {
     const files = await this.listRawFiles(storeName);
     const file = files.find(({ name }) => name === syncKey);
-    if (!file?.id) return undefined;
+
+    if (!file?.id) {
+      return undefined;
+    }
+
     const response = await (
       await this.client
     ).drive.files.get({
       fileId: file.id,
       alt: 'media',
     });
+
     return JSON.parse(response.body) as T;
   }
 
@@ -56,11 +62,11 @@ export class GoogleDriveTransport implements BlobSyncTransport {
   ): Promise<SyncFileInfo> {
     const folder = await this.getDriveFolder(storeName, true);
     const files = await this.listRawFiles(storeName);
-
     const mimeType = 'application/json';
     const existingId = files.find(({ name }) => name === syncKey)?.id;
 
     const formData = new FormData();
+
     formData.append(
       'resource',
       new File(
@@ -76,6 +82,7 @@ export class GoogleDriveTransport implements BlobSyncTransport {
         { type: mimeType },
       ),
     );
+
     formData.append(
       'media',
       new File([JSON.stringify(value)], syncKey, { type: mimeType }),
@@ -94,6 +101,7 @@ export class GoogleDriveTransport implements BlobSyncTransport {
     });
 
     const driveFile = (await response.json()) as DriveFile;
+
     return this.toSyncFileInfo(driveFile);
   }
 
@@ -104,10 +112,14 @@ export class GoogleDriveTransport implements BlobSyncTransport {
   ): Promise<void> {
     const files = await this.listRawFiles(storeName);
     const existingId = files.find(({ name }) => name === syncKey)?.id;
-    if (!existingId) return;
+
+    if (!existingId) {
+      return;
+    }
 
     if (soft) {
       const value = await this.get(storeName, syncKey);
+
       if (value && typeof value === 'object') {
         await this.put(
           storeName,
@@ -124,6 +136,7 @@ export class GoogleDriveTransport implements BlobSyncTransport {
   async deleteAll(storeName: string, soft?: boolean): Promise<void> {
     if (soft) {
       const files = await this.listRawFiles(storeName);
+
       await Promise.allSettled(
         files.map((file) =>
           file.name ? this.delete(storeName, file.name, true) : undefined,
@@ -131,16 +144,16 @@ export class GoogleDriveTransport implements BlobSyncTransport {
       );
     } else {
       const folder = await this.getDriveFolder(storeName);
-      if (folder?.id)
+
+      if (folder?.id) {
         await (await this.client).drive.files.delete({ fileId: folder.id });
+      }
     }
   }
 
   async count(storeName: string): Promise<number> {
     return (await this.list(storeName)).length;
   }
-
-  // --- Blob methods ---
 
   async putBlob(
     storeName: string,
@@ -153,6 +166,7 @@ export class GoogleDriveTransport implements BlobSyncTransport {
     const existingId = existing.find(({ name }) => name === blobKey)?.id;
 
     const formData = new FormData();
+
     formData.append(
       'resource',
       new File(
@@ -166,6 +180,7 @@ export class GoogleDriveTransport implements BlobSyncTransport {
         { type: 'application/json' },
       ),
     );
+
     formData.append('media', new File([blob], blobKey, { type: contentType }));
 
     await this.client;
@@ -181,16 +196,22 @@ export class GoogleDriveTransport implements BlobSyncTransport {
     });
 
     const driveFile = (await response.json()) as DriveFile;
+
     return this.toSyncFileInfo(driveFile);
   }
 
   async getBlob(storeName: string, blobKey: string): Promise<Blob | undefined> {
     const files = await this.listRawBlobFiles(storeName);
     const file = files.find(({ name }) => name === blobKey);
-    if (!file?.id) return undefined;
+
+    if (!file?.id) {
+      return undefined;
+    }
+
     const response = await (
       await this.client
     ).drive.files.get({ fileId: file.id, alt: 'media' });
+
     return new Blob([response.body]);
   }
 
@@ -203,6 +224,7 @@ export class GoogleDriveTransport implements BlobSyncTransport {
         q: `'${folder.id}' in parents`,
         spaces: 'appDataFolder',
       });
+
       return (result.result.files ?? []).map((f) => this.toSyncFileInfo(f));
     } catch {
       return [];
@@ -212,11 +234,13 @@ export class GoogleDriveTransport implements BlobSyncTransport {
   async deleteBlob(storeName: string, blobKey: string): Promise<void> {
     const files = await this.listRawBlobFiles(storeName);
     const existingId = files.find(({ name }) => name === blobKey)?.id;
-    if (!existingId) return;
+
+    if (!existingId) {
+      return;
+    }
+
     await (await this.client).drive.files.delete({ fileId: existingId });
   }
-
-  // --- Private helpers ---
 
   private toSyncFileInfo(file: DriveFile): SyncFileInfo {
     return {
@@ -238,6 +262,7 @@ export class GoogleDriveTransport implements BlobSyncTransport {
       q: `'${folder.id}' in parents`,
       spaces: 'appDataFolder',
     });
+
     return result.result.files ?? [];
   }
 
@@ -250,6 +275,7 @@ export class GoogleDriveTransport implements BlobSyncTransport {
         q: `'${folder.id}' in parents`,
         spaces: 'appDataFolder',
       });
+
       return result.result.files ?? [];
     } catch {
       return [];
@@ -275,9 +301,16 @@ export class GoogleDriveTransport implements BlobSyncTransport {
       ).result?.files ?? [];
 
     if (!folderList.length) {
-      if (!create) console.warn(`Folder with name "${name}" does not exist.`);
+      if (!create) {
+        console.warn(`Folder with name "${name}" does not exist.`);
+      }
+
       const ids = await this.generateIds(1);
-      if (!ids.length) throw new Error('No id generated for folder.');
+
+      if (!ids.length) {
+        throw new Error('No id generated for folder.');
+      }
+
       return (
         await (
           await this.client
@@ -292,6 +325,7 @@ export class GoogleDriveTransport implements BlobSyncTransport {
         })
       ).result as DriveFileWithId;
     }
+
     return folderList[0] as DriveFileWithId;
   }
 
@@ -303,7 +337,10 @@ export class GoogleDriveTransport implements BlobSyncTransport {
   }
 
   private async generateIds(count: number): Promise<string[]> {
-    if (count < 1) throw new RangeError(`count of ${count} is out of bounds.`);
+    if (count < 1) {
+      throw new RangeError(`count of ${count} is out of bounds.`);
+    }
+
     return (
       (
         await (

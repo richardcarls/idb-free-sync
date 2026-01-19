@@ -40,9 +40,13 @@ export class OneDriveTransport implements BlobSyncTransport {
       headers: { Authorization: `Bearer ${token}` },
     });
 
-    if (response.status === 404) return [];
-    if (!response.ok)
+    if (response.status === 404) {
+      return [];
+    }
+
+    if (!response.ok) {
       throw new Error(`OneDrive list failed: ${response.status}`);
+    }
 
     const data = (await response.json()) as { value: GraphDriveItem[] };
     return (data.value ?? [])
@@ -63,9 +67,13 @@ export class OneDriveTransport implements BlobSyncTransport {
       headers: { Authorization: `Bearer ${token}` },
     });
 
-    if (response.status === 404) return undefined;
-    if (!response.ok)
+    if (response.status === 404) {
+      return undefined;
+    }
+
+    if (!response.ok) {
       throw new Error(`OneDrive get failed: ${response.status}`);
+    }
 
     return (await response.json()) as T;
   }
@@ -90,8 +98,9 @@ export class OneDriveTransport implements BlobSyncTransport {
       body: JSON.stringify(value),
     });
 
-    if (!response.ok)
+    if (!response.ok) {
       throw new Error(`OneDrive put failed: ${response.status}`);
+    }
 
     const item = (await response.json()) as GraphDriveItem;
     return {
@@ -118,7 +127,9 @@ export class OneDriveTransport implements BlobSyncTransport {
 
     const token = await this.getToken();
     const fileId = await this.getFileId(storeName, syncKey, token);
-    if (!fileId) return;
+    if (!fileId) {
+      return;
+    }
 
     const url = `${GRAPH_BASE}/me/drive/items/${fileId}`;
     await request(url, {
@@ -138,7 +149,9 @@ export class OneDriveTransport implements BlobSyncTransport {
 
     const token = await this.getToken();
     const dirId = await this.getDirectoryId(storeName, token);
-    if (!dirId) return;
+    if (!dirId) {
+      return;
+    }
 
     await request(`${GRAPH_BASE}/me/drive/items/${dirId}`, {
       method: 'DELETE',
@@ -149,8 +162,6 @@ export class OneDriveTransport implements BlobSyncTransport {
   async count(storeName: string): Promise<number> {
     return (await this.list(storeName)).length;
   }
-
-  // --- Blob methods ---
 
   async putBlob(
     storeName: string,
@@ -171,8 +182,9 @@ export class OneDriveTransport implements BlobSyncTransport {
       body: blob,
     });
 
-    if (!response.ok)
+    if (!response.ok) {
       throw new Error(`OneDrive putBlob failed: ${response.status}`);
+    }
 
     const item = (await response.json()) as GraphDriveItem;
     return {
@@ -191,9 +203,13 @@ export class OneDriveTransport implements BlobSyncTransport {
       headers: { Authorization: `Bearer ${token}` },
     });
 
-    if (response.status === 404) return undefined;
-    if (!response.ok)
+    if (response.status === 404) {
+      return undefined;
+    }
+
+    if (!response.ok) {
       throw new Error(`OneDrive getBlob failed: ${response.status}`);
+    }
 
     return response.blob();
   }
@@ -205,9 +221,13 @@ export class OneDriveTransport implements BlobSyncTransport {
       headers: { Authorization: `Bearer ${token}` },
     });
 
-    if (response.status === 404) return [];
-    if (!response.ok)
+    if (response.status === 404) {
+      return [];
+    }
+
+    if (!response.ok) {
       throw new Error(`OneDrive listBlobs failed: ${response.status}`);
+    }
 
     const data = (await response.json()) as { value: GraphDriveItem[] };
     return (data.value ?? [])
@@ -224,15 +244,15 @@ export class OneDriveTransport implements BlobSyncTransport {
   async deleteBlob(storeName: string, blobKey: string): Promise<void> {
     const token = await this.getToken();
     const fileId = await this.getFileId(`${storeName}-blobs`, blobKey, token);
-    if (!fileId) return;
+    if (!fileId) {
+      return;
+    }
 
     await request(`${GRAPH_BASE}/me/drive/items/${fileId}`, {
       method: 'DELETE',
       headers: { Authorization: `Bearer ${token}` },
     });
   }
-
-  // --- Private helpers ---
 
   private async getToken(): Promise<string> {
     await this.ensureMsal();
@@ -257,10 +277,14 @@ export class OneDriveTransport implements BlobSyncTransport {
   }
 
   private async ensureMsal(): Promise<void> {
-    if (this.msalInstance) return;
+    if (this.msalInstance) {
+      return;
+    }
+
     if (!this.initPromise) {
       this.initPromise = (async () => {
         this.msalInstance = createMsalClient(this.clientId);
+
         await this.msalInstance.initialize();
         await this.msalInstance.handleRedirectPromise();
       })();
@@ -270,6 +294,7 @@ export class OneDriveTransport implements BlobSyncTransport {
 
   private async ensureDirectory(name: string, token: string): Promise<void> {
     const url = `${GRAPH_BASE}/me/drive/special/approot/children`;
+
     await request(url, {
       method: 'POST',
       headers: {
@@ -282,6 +307,7 @@ export class OneDriveTransport implements BlobSyncTransport {
         '@microsoft.graph.conflictBehavior': 'rename',
       }),
     });
+
     // Ignore 409 conflicts (directory already exists)
   }
 
@@ -294,8 +320,13 @@ export class OneDriveTransport implements BlobSyncTransport {
     const response = await request(url, {
       headers: { Authorization: `Bearer ${token}` },
     });
-    if (!response.ok) return null;
+
+    if (!response.ok) {
+      return null;
+    }
+
     const item = (await response.json()) as { id: string };
+
     return item.id ?? null;
   }
 
@@ -307,8 +338,13 @@ export class OneDriveTransport implements BlobSyncTransport {
     const response = await request(url, {
       headers: { Authorization: `Bearer ${token}` },
     });
-    if (!response.ok) return null;
+
+    if (!response.ok) {
+      return null;
+    }
+
     const item = (await response.json()) as { id: string };
+
     return item.id ?? null;
   }
 }

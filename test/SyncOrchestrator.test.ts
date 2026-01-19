@@ -253,9 +253,11 @@ describe('syncStore', () => {
 
   it('settles queue failures and logs transport failures', async () => {
     await db.put('notes', { id: 'upload', title: 'Upload' });
+
     const sync = transport([{ id: 'missing.json', syncKey: 'missing.json' }], {
       'missing.json': undefined,
     });
+
     vi.mocked(sync.put).mockRejectedValue(new Error('upload failed'));
 
     await expect(
@@ -267,6 +269,7 @@ describe('syncStore', () => {
 
   it('settles gracefully when a local record is gone from IDB before the upload queue runs', async () => {
     await db.put('notes', { id: 'vanished', title: 'Will be gone' });
+
     const sync = transport();
 
     // Simulate record deleted between queue build and execution
@@ -275,20 +278,24 @@ describe('syncStore', () => {
     await expect(
       syncStore<NoteRecord>(db, sync, 'notes'),
     ).resolves.toBeUndefined();
+
     expect(sync.put).not.toHaveBeenCalled();
   });
 
   it('logs local database and remote delete queue failures', async () => {
     await db.put('notes', { id: 'delete', title: 'Delete' });
+
     const sync = transport(
       [
         { id: 'delete.json', syncKey: 'delete.json' },
         { id: 'remote.json', syncKey: 'remote.json' },
       ],
+
       {
         'remote.json': { id: 'remote', title: 'Remote' },
       },
     );
+
     vi.mocked(sync.delete).mockRejectedValue(new Error('delete failed'));
     vi.spyOn(db, 'put').mockRejectedValue(new Error('database failed'));
 
@@ -312,6 +319,7 @@ describe('syncStore – blobFields', () => {
 
   it('throws when blobFields is set and transport does not support blobs', async () => {
     const sync = transport();
+
     await expect(
       syncStore<RecipeRecord>(db, sync, 'notes', {
         blobFields: { imageUrl: blobFieldConfig(mockBlobStore()) },
@@ -340,6 +348,7 @@ describe('syncStore – blobFields', () => {
       imageBlob,
       'image/jpeg',
     );
+
     expect(sync.put).toHaveBeenCalledWith(
       'notes',
       'r1.json',
@@ -435,6 +444,7 @@ describe('syncStore – blobFields', () => {
     });
 
     expect(sync.putBlob).not.toHaveBeenCalled();
+
     // Field is still replaced with the key in remote JSON
     expect(sync.put).toHaveBeenCalledWith(
       'notes',
@@ -483,6 +493,7 @@ describe('syncStore – blobFields', () => {
       expect.any(Blob),
       undefined,
     );
+
     expect(sync.put).toHaveBeenCalledWith(
       'notes',
       'r8.json',
