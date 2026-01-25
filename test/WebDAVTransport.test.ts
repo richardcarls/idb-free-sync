@@ -3,7 +3,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { WebDAVTransport } from '../src/WebDAVTransport';
 import { expectSyncFileInfo } from './support/transportContract';
 
-// Makes adapter delegates available to Vitest's hoisted module mock.
 const { client, createWebDAVClient } = vi.hoisted(() => ({
   client: {
     getDirectoryContents: vi.fn(),
@@ -58,7 +57,6 @@ describe('WebDAVTransport', () => {
     ]);
 
     client.getDirectoryContents.mockRejectedValueOnce(new Error('missing'));
-
     expect(await transport.list('missing')).toEqual([]);
   });
 
@@ -70,7 +68,6 @@ describe('WebDAVTransport', () => {
     expect(await transport.get('notes', 'a.json')).toEqual({ id: 'a' });
 
     client.getFileContents.mockRejectedValueOnce(new Error('missing'));
-
     expect(await transport.get('notes', 'missing.json')).toBeUndefined();
   });
 
@@ -78,7 +75,6 @@ describe('WebDAVTransport', () => {
     client.stat.mockResolvedValue(stat);
 
     const transport = new WebDAVTransport({ url: 'https://dav.example' });
-
     const result = await transport.put('notes', 'a.json', { id: 'a' });
 
     expect(client.createDirectory).toHaveBeenCalledTimes(2);
@@ -87,6 +83,7 @@ describe('WebDAVTransport', () => {
       '{\n  "id": "a"\n}',
       { overwrite: true },
     );
+
     expect(result).toMatchObject({ syncKey: 'a.json', size: 12 });
     expectSyncFileInfo(result, 'a.json');
   });
@@ -105,7 +102,91 @@ describe('WebDAVTransport', () => {
     await expect(transport.delete('notes', 'a.json')).resolves.toBeUndefined();
     await expect(transport.deleteAll('notes', true)).resolves.toBeUndefined();
     await expect(transport.deleteAll('notes')).resolves.toBeUndefined();
-
     expect(await transport.count('notes')).toBe(1);
+  });
+
+  it('putBlob ensures blob directory, uploads, and maps metadata', async () => {
+    const blobStat = {
+      filename: '/RecipeTome/notes-blobs/img.jpg',
+      basename: 'img.jpg',
+      type: 'file',
+      lastmod: '2026-01-02T00:00:00Z',
+      size: 42,
+    };
+
+    client.stat.mockResolvedValue(blobStat);
+
+    const transport = new WebDAVTransport({ url: 'https://dav.example' });
+    const blob = new Blob(['img'], { type: 'image/jpeg' });
+
+    const result = await transport.putBlob(
+      'notes',
+      'img.jpg',
+      blob,
+      'image/jpeg',
+    );
+
+    expect(client.putFileContents).toHaveBeenCalledWith(
+      '/RecipeTome/notes-blobs/img.jpg',
+      expect.any(ArrayBuffer),
+      expect.objectContaining({ overwrite: true }),
+    );
+    expect(result).toMatchObject({ syncKey: 'img.jpg', size: 42 });
+  });
+
+  it('getBlob returns Blob on success and undefined on failure', async () => {
+    const buffer = new ArrayBuffer(4);
+
+    client.getFileContents.mockResolvedValueOnce(buffer);
+
+    const transport = new WebDAVTransport({ url: 'https://dav.example' });
+
+    const result = await transport.getBlob('notes', 'img.jpg');
+    expect(result).toBeInstanceOf(Blob);
+
+    client.getFileContents.mockRejectedValueOnce(new Error('missing'));
+    expect(await transport.getBlob('notes', 'missing.jpg')).toBeUndefined();
+  });
+
+  it('listBlobs filters to files and treats failures as empty', async () => {
+    const blobStat = {
+      filename: '/RecipeTome/notes-blobs/img.jpg',
+      basename: 'img.jpg',
+      type: 'file',
+      lastmod: '2026-01-02T00:00:00Z',
+      size: 42,
+    };
+
+    client.getDirectoryContents.mockResolvedValueOnce([
+      blobStat,
+      { ...blobStat, type: 'directory' },
+    ]);
+
+    const transport = new WebDAVTransport({ url: 'https://dav.example' });
+
+    expect(await transport.listBlobs('notes')).toEqual([
+      expect.objectContaining({ syncKey: 'img.jpg', size: 42 }),
+    ]);
+
+    client.getDirectoryContents.mockRejectedValueOnce(new Error('missing'));
+    expect(await transport.listBlobs('empty')).toEqual([]);
+  });
+
+  it('deleteBlob removes the blob and tolerates missing files', async () => {
+    const transport = new WebDAVTransport({ url: 'https://dav.example' });
+
+    await expect(
+      transport.deleteBlob('notes', 'img.jpg'),
+    ).resolves.toBeUndefined();
+
+    expect(client.deleteFile).toHaveBeenCalledWith(
+      '/RecipeTome/notes-blobs/img.jpg',
+    );
+
+    client.deleteFile.mockRejectedValueOnce(new Error('already gone'));
+
+    await expect(
+      transport.deleteBlob('notes', 'missing.jpg'),
+    ).resolves.toBeUndefined();
   });
 });

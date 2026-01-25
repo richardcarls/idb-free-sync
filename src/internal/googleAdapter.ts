@@ -6,11 +6,15 @@ export function getGoogleClient(
   clientId: string,
   scopes: readonly string[],
 ): Promise<typeof gapi.client> {
-  if (globalThis.gapi?.client) return Promise.resolve(globalThis.gapi.client);
+  if (globalThis.gapi?.client) {
+    return Promise.resolve(globalThis.gapi.client);
+  }
 
   return new Promise((resolve) => {
     const timeout = setTimeout(() => {
-      if (!globalThis.google || !globalThis.gapi) return;
+      if (!globalThis.google || !globalThis.gapi) {
+        return;
+      }
 
       clearTimeout(timeout);
       const tokenClient = google.accounts.oauth2.initTokenClient({
@@ -25,13 +29,16 @@ export function getGoogleClient(
                 'https://www.googleapis.com/discovery/v1/apis/drive/v3/rest',
               ],
             });
+
             if (tokenResponse?.access_token) {
               gapi.auth.setToken(tokenResponse);
             }
+
             resolve(gapi.client);
           });
         },
       });
+
       tokenClient.requestAccessToken();
     }, 1000);
   });
