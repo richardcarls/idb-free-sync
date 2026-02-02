@@ -6,15 +6,20 @@ export default defineConfig({
 
   build: {
     lib: {
-      entry: 'src/index.ts',
-      name: 'FreeSync',
-      fileName: 'idb-free-sync',
-      formats: ['es', 'cjs'],
+      entry: {
+        'idb-free-sync': 'src/index.ts',
+        core: 'src/core.ts',
+        google: 'src/GoogleDriveTransport.ts',
+        dropbox: 'src/DropboxTransport.ts',
+        onedrive: 'src/OneDriveTransport.ts',
+        webdav: 'src/WebDAVTransport.ts',
+      },
+      formats: ['es'],
     },
     rollupOptions: {
       external: ['idb'],
     },
   },
 
-  plugins: [dts({ include: ['src/*.ts'], insertTypesEntry: true })],
+  plugins: [dts({ include: ['src/*.ts'] })],
 });
