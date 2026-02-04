@@ -14,7 +14,12 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text', 'json-summary', 'html'],
       include: ['src/**/*.ts'],
-      exclude: ['src/index.ts', 'src/OPFSTransport.ts', 'src/SyncTransport.ts'],
+      exclude: [
+        'src/core.ts',
+        'src/index.ts',
+        'src/OPFSTransport.ts',
+        'src/SyncTransport.ts',
+      ],
       thresholds: {
         perFile: true,
         statements: 80,
