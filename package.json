@@ -1,6 +1,6 @@
 {
   "name": "idb-free-sync",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "Synchronize browser IndexedDB stores with cloud-backed JSON files.",
   "keywords": [
     "indexeddb",
@@ -21,14 +21,32 @@
     "README.md",
     "LICENSE"
   ],
-  "main": "./dist/idb-free-sync.cjs",
   "module": "./dist/idb-free-sync.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/idb-free-sync.js",
-      "require": "./dist/idb-free-sync.cjs"
+      "import": "./dist/idb-free-sync.js"
+    },
+    "./core": {
+      "types": "./dist/core.d.ts",
+      "import": "./dist/core.js"
+    },
+    "./google": {
+      "types": "./dist/GoogleDriveTransport.d.ts",
+      "import": "./dist/google.js"
+    },
+    "./dropbox": {
+      "types": "./dist/DropboxTransport.d.ts",
+      "import": "./dist/dropbox.js"
+    },
+    "./onedrive": {
+      "types": "./dist/OneDriveTransport.d.ts",
+      "import": "./dist/onedrive.js"
+    },
+    "./webdav": {
+      "types": "./dist/WebDAVTransport.d.ts",
+      "import": "./dist/webdav.js"
     }
   },
   "scripts": {
@@ -56,6 +74,7 @@
     "@types/gapi.client.drive-v3": "*",
     "@types/google.accounts": "^0.0.18",
     "@types/node": "^25.9.2",
+    "@types/node-fetch": "^2.6.13",
     "@vitest/coverage-v8": "^4.1.8",
     "fake-indexeddb": "^6.2.5",
     "idb": "^8.0.0",

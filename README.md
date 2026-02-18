@@ -21,6 +21,15 @@ yarn add idb-free-sync idb
 
 `idb` is a peer dependency. Cloud provider SDKs are bundled dependencies.
 
+The package is ESM-only. Import from `idb-free-sync/core` when an application
+provides its own transport, or import a provider directly to avoid loading
+unrelated provider SDKs:
+
+```ts
+import { syncStore } from 'idb-free-sync/core';
+import { GoogleDriveTransport } from 'idb-free-sync/google';
+```
+
 ## Quick Start
 
 Records must use string primary keys. By default, records should also have a
