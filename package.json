@@ -51,7 +51,7 @@
   },
   "scripts": {
     "build": "vite build",
-    "check": "yarn format:check && yarn typecheck && yarn typecheck:test && yarn test:coverage && yarn build",
+    "check": "yarn format:check && yarn typecheck && yarn typecheck:test && yarn test:coverage && yarn build && yarn test:package",
     "commitlint": "commitlint",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
@@ -59,6 +59,7 @@
     "prepublishOnly": "yarn check",
     "test": "vitest",
     "test:coverage": "vitest run --coverage",
+    "test:package": "node test/package-exports.mjs",
     "test:run": "vitest run",
     "typecheck": "tsc --noEmit",
     "typecheck:test": "tsc --noEmit -p tsconfig.test.json"

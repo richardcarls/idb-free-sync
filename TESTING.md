@@ -10,11 +10,13 @@ requests.
 yarn test
 yarn test:run
 yarn test:coverage
+yarn test:package
 yarn typecheck:test
 ```
 
 `yarn test` starts watch mode. `yarn check` runs formatting, source and test
-typechecking, enforced coverage, and the package build.
+typechecking, enforced coverage, the package build, and a smoke test that
+imports every declared package export.
 
 Tests use:
 
