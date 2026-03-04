@@ -28,6 +28,7 @@ yarn typecheck
 yarn typecheck:test
 yarn test:run
 yarn test:coverage
+yarn test:package
 yarn build
 ```
 
