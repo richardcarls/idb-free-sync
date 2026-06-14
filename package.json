@@ -75,7 +75,6 @@
     "@types/gapi.client.drive-v3": "*",
     "@types/google.accounts": "^0.0.18",
     "@types/node": "^25.9.2",
-    "@types/node-fetch": "^2.6.13",
     "@vitest/coverage-v8": "^4.1.8",
     "fake-indexeddb": "^6.2.5",
     "idb": "^8.0.0",
@@ -97,6 +96,7 @@
   },
   "dependencies": {
     "@azure/msal-browser": "5.11.0",
+    "@types/node-fetch": "^2.6.13",
     "dropbox": "10.34.0",
     "webdav": "5.10.0"
   }
