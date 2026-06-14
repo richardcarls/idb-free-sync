@@ -288,7 +288,7 @@ async function downloadBlobFields<T extends SyncRecord>(
  * @param options   Optional conflict resolution and field configuration.
  */
 export async function syncStore<T extends SyncRecord>(
-  db: IDBPDatabase<any>,
+  db: IDBPDatabase,
   transport: SyncTransport,
   storeName: string,
   options?: SyncOptions<T>,
