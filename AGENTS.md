@@ -2,7 +2,7 @@
 
 ## Repository Purpose
 
-`idb-free-sync` is a browser-oriented TypeScript library that synchronizes `idb`
+`@rcarls/idb-free-sync` is a browser-oriented TypeScript library that synchronizes `idb`
 object stores with JSON-file storage providers. Keep changes focused on the
 library's transport contract and sync behavior.
 
@@ -82,3 +82,75 @@ may already depend on them.
 Keep `README.md` examples synchronized with the public API. Do not claim support
 for server runtimes: built-in transports rely on browser APIs, globals, or
 browser-oriented SDKs.
+
+## Release Workflow
+
+This repo uses [Changesets](https://github.com/changesets/changesets) for versioning and
+changelog generation, following GitFlow.
+
+### Adding a changeset during feature work
+
+After code changes on a `feature/*` or directly on `develop`, add an intent file:
+
+```sh
+yarn changeset
+```
+
+Select the bump type (`major` / `minor` / `patch`) and describe the change. Commit the
+generated `.changeset/*.md` file alongside the code. Changesets accumulate on `develop`
+until a release is cut.
+
+### Cutting a release
+
+```sh
+# 1. Create a release branch from develop
+git checkout -b release/vX.Y.Z develop
+
+# 2. Apply all pending changesets — bumps package.json and writes CHANGELOG.md
+yarn version:packages
+
+# 3. Commit the version bump
+git add .
+git commit -m "chore(release): bump to vX.Y.Z"
+
+# 4. Merge to main (no-ff), tag, and back-merge to develop
+git checkout main
+git merge --no-ff release/vX.Y.Z -m "chore(release): merge branch release/vX.Y.Z"
+git tag vX.Y.Z
+git checkout develop
+git merge --no-ff main -m "chore(release): back-merge branch release/vX.Y.Z"
+git branch -d release/vX.Y.Z
+
+# 5. Push — merging to main triggers the release.yml publish workflow
+git push origin main develop --tags
+```
+
+### First-time npm setup (one-time prerequisites)
+
+Before the automated workflow can publish, complete these steps once:
+
+1. **Initial publish** — if the package does not yet exist on npm, publish manually:
+
+   ```sh
+   yarn build
+   npm publish --access=public
+   ```
+
+2. **Create the `npm` GitHub environment** — in repo Settings → Environments → New environment
+   named `npm`. Optionally add required reviewers for a manual approval gate.
+
+3. **Add `NODE_AUTH_TOKEN` secret** — create a granular npm access token at
+   `https://www.npmjs.com/settings/<username>/tokens` with the `@rcarls/idb-free-sync` package scope
+   and **bypass-2FA** enabled. Store it as `NODE_AUTH_TOKEN` in the `npm` environment.
+
+   > Trusted Publishers (OIDC auth) is not available with Yarn 4 + Changesets: `yarn npm publish`
+   > does not perform the OIDC token exchange. A granular npm token is required. Provenance
+   > attestation via sigstore still works via `NPM_CONFIG_PROVENANCE=true`.
+
+### How publish works
+
+Merging to `main` triggers `.github/workflows/release.yml`, which:
+
+1. Builds the package
+2. Runs `yarn changeset publish`, which publishes any package versions not yet on npm
+3. Attaches a provenance statement to the published artifact via sigstore
