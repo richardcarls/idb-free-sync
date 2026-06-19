@@ -28,16 +28,22 @@ beforeEach(() => {
 });
 
 describe('SDK adapters', () => {
-  it('constructs Dropbox with the stored access token', () => {
+  it('constructs Dropbox with the stored access token and global fetch', () => {
     createDropboxClient();
 
-    expect(Dropbox).toHaveBeenCalledWith({ accessToken: 'dropbox-token' });
+    expect(Dropbox).toHaveBeenCalledWith({
+      accessToken: 'dropbox-token',
+      fetch: globalThis.fetch,
+    });
 
     vi.stubGlobal('localStorage', { getItem: () => null });
 
     createDropboxClient();
 
-    expect(Dropbox).toHaveBeenLastCalledWith({ accessToken: '' });
+    expect(Dropbox).toHaveBeenLastCalledWith({
+      accessToken: '',
+      fetch: globalThis.fetch,
+    });
   });
 
   it('constructs MSAL with the application identity settings', () => {

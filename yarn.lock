@@ -1045,37 +1045,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@rcarls/idb-free-sync@workspace:.":
-  version: 0.0.0-use.local
-  resolution: "@rcarls/idb-free-sync@workspace:."
-  dependencies:
-    "@azure/msal-browser": "npm:5.11.0"
-    "@changesets/cli": "npm:^2.31.0"
-    "@commitlint/cli": "npm:^21.0.2"
-    "@commitlint/config-conventional": "npm:^21.0.2"
-    "@nodable/entities": "npm:^2.1.1"
-    "@types/gapi": "npm:*"
-    "@types/gapi.client.drive-v3": "npm:*"
-    "@types/google.accounts": "npm:^0.0.18"
-    "@types/node": "npm:^25.9.2"
-    "@types/node-fetch": "npm:^2.6.13"
-    "@vitest/coverage-v8": "npm:^4.1.8"
-    dropbox: "npm:10.34.0"
-    fake-indexeddb: "npm:^6.2.5"
-    idb: "npm:^8.0.0"
-    msw: "npm:^2.14.6"
-    prettier: "npm:^3.8.3"
-    simple-git-hooks: "npm:^2.13.1"
-    typescript: "npm:^5.3.3"
-    vite: "npm:^6.0.0"
-    vite-plugin-dts: "npm:^4.0.0"
-    vitest: "npm:^4.1.8"
-    webdav: "npm:5.10.0"
-  peerDependencies:
-    idb: ">=8"
-  languageName: unknown
-  linkType: soft
-
 "@rolldown/binding-android-arm64@npm:1.0.3":
   version: 1.0.3
   resolution: "@rolldown/binding-android-arm64@npm:1.0.3"
@@ -3025,6 +2994,40 @@ __metadata:
   checksum: 10c0/3c228920f3bd307f56bf8363706a776f4a060eb042f131cd23855ceca962951b264d0997ab38a1ad340e1c5df8499ed26e1f4f0db6b2a2ad9befaff22f14b722
   languageName: node
   linkType: hard
+
+"idb-free-sync@workspace:.":
+  version: 0.0.0-use.local
+  resolution: "idb-free-sync@workspace:."
+  dependencies:
+    "@azure/msal-browser": "npm:5.11.0"
+    "@changesets/cli": "npm:^2.31.0"
+    "@commitlint/cli": "npm:^21.0.2"
+    "@commitlint/config-conventional": "npm:^21.0.2"
+    "@nodable/entities": "npm:^2.1.1"
+    "@types/gapi": "npm:*"
+    "@types/gapi.client.drive-v3": "npm:*"
+    "@types/google.accounts": "npm:^0.0.18"
+    "@types/node": "npm:^25.9.2"
+    "@types/node-fetch": "npm:^2.6.13"
+    "@vitest/coverage-v8": "npm:^4.1.8"
+    dropbox: "npm:10.34.0"
+    fake-indexeddb: "npm:^6.2.5"
+    idb: "npm:^8.0.0"
+    msw: "npm:^2.14.6"
+    prettier: "npm:^3.8.3"
+    simple-git-hooks: "npm:^2.13.1"
+    typescript: "npm:^5.3.3"
+    vite: "npm:^6.0.0"
+    vite-plugin-dts: "npm:^4.0.0"
+    vitest: "npm:^4.1.8"
+    webdav: "npm:5.10.0"
+  peerDependencies:
+    idb: ">=8"
+  dependenciesMeta:
+    dropbox@10.34.0:
+      unplugged: true
+  languageName: unknown
+  linkType: soft
 
 "idb@npm:^8.0.0":
   version: 8.0.3
