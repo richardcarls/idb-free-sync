@@ -2645,14 +2645,14 @@ const RAW_RUNTIME_STATE =
     ]],\
     ["dropbox", [\
       ["npm:10.34.0", {\
-        "packageLocation": "./.yarn/unplugged/dropbox-virtual-8007210c5d/node_modules/dropbox/",\
+        "packageLocation": "../../../../C:/Users/rick/AppData/Local/Yarn/Berry/cache/dropbox-npm-10.34.0-5505799457-10c0.zip/node_modules/dropbox/",\
         "packageDependencies": [\
           ["dropbox", "npm:10.34.0"]\
         ],\
         "linkType": "SOFT"\
       }],\
       ["virtual:269dad9e4eedbbe53571633d8d35da5657bc11e01d630174cbe52f34d32c59a9b38aa9657e679018e2690f657ed306ed8fcd821e5c223b3d8d5ddc9127eff461#npm:10.34.0", {\
-        "packageLocation": "./.yarn/unplugged/dropbox-virtual-8007210c5d/node_modules/dropbox/",\
+        "packageLocation": "./.yarn/__virtual__/dropbox-virtual-8007210c5d/5/C:/Users/rick/AppData/Local/Yarn/Berry/cache/dropbox-npm-10.34.0-5505799457-10c0.zip/node_modules/dropbox/",\
         "packageDependencies": [\
           ["@types/node-fetch", "npm:2.6.13"],\
           ["dropbox", "virtual:269dad9e4eedbbe53571633d8d35da5657bc11e01d630174cbe52f34d32c59a9b38aa9657e679018e2690f657ed306ed8fcd821e5c223b3d8d5ddc9127eff461#npm:10.34.0"],\

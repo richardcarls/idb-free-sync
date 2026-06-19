@@ -102,10 +102,5 @@
     "@azure/msal-browser": "5.11.0",
     "dropbox": "10.34.0",
     "webdav": "5.10.0"
-  },
-  "dependenciesMeta": {
-    "dropbox@10.34.0": {
-      "unplugged": true
-    }
   }
 }
