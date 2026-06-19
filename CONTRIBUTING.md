@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for helping improve `idb-free-sync`. Bug reports, provider integrations,
+Thanks for helping improve `@rcarls/idb-free-sync`. Bug reports, provider integrations,
 documentation improvements, and focused fixes are welcome.
 
 ## Before Opening an Issue

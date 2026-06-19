@@ -1,6 +1,6 @@
 # Testing
 
-`idb-free-sync` uses Vitest for deterministic unit and contract tests. Pull requests
+`@rcarls/idb-free-sync` uses Vitest for deterministic unit and contract tests. Pull requests
 and CI do not require provider credentials and must not make real cloud API
 requests.
 

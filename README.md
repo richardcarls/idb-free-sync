@@ -1,6 +1,6 @@
-# idb-free-sync
+# @rcarls/idb-free-sync
 
-`idb-free-sync` is a browser-focused TypeScript library for synchronizing IndexedDB
+`@rcarls/idb-free-sync` is a browser-focused TypeScript library for synchronizing IndexedDB
 object stores with cloud-backed JSON files.
 
 It provides:
@@ -16,18 +16,18 @@ It provides:
 ## Installation
 
 ```sh
-yarn add idb-free-sync idb
+yarn add @rcarls/idb-free-sync idb
 ```
 
 `idb` is a peer dependency. Cloud provider SDKs are bundled dependencies.
 
-The package is ESM-only. Import from `idb-free-sync/core` when an application
+The package is ESM-only. Import from `@rcarls/idb-free-sync/core` when an application
 provides its own transport, or import a provider directly to avoid loading
 unrelated provider SDKs:
 
 ```ts
-import { syncStore } from 'idb-free-sync/core';
-import { GoogleDriveTransport } from 'idb-free-sync/google';
+import { syncStore } from '@rcarls/idb-free-sync/core';
+import { GoogleDriveTransport } from '@rcarls/idb-free-sync/google';
 ```
 
 ## Quick Start
@@ -39,7 +39,7 @@ newer. If your schema stores the timestamp under a different name, set
 
 ```ts
 import { openDB } from 'idb';
-import { syncStore, type SyncTransport } from 'idb-free-sync';
+import { syncStore, type SyncTransport } from '@rcarls/idb-free-sync';
 
 type Note = {
   id: string;
@@ -194,7 +194,7 @@ URL requests and serve blobs from OPFS, making them usable as `<img src>` or
 `<audio src>` values.
 
 ```ts
-import { OPFSBlobStore } from 'idb-free-sync';
+import { OPFSBlobStore } from '@rcarls/idb-free-sync';
 
 const imageStore = new OPFSBlobStore('recipe-images');
 
@@ -240,7 +240,7 @@ Blobs are stored in a sibling directory named `<storeName>-blobs/` so they do
 not appear in the record listing.
 
 ```ts
-import { OPFSBlobStore, syncStore } from 'idb-free-sync';
+import { OPFSBlobStore, syncStore } from '@rcarls/idb-free-sync';
 
 type Recipe = {
   id: string;
@@ -283,7 +283,7 @@ resolution (keep-local, keep-remote, etc.) determines which blobs move.
 To add blob support to a custom transport, implement `BlobSyncTransport`:
 
 ```ts
-import type { BlobSyncTransport, SyncFileInfo } from 'idb-free-sync';
+import type { BlobSyncTransport, SyncFileInfo } from '@rcarls/idb-free-sync';
 
 class CustomTransport implements BlobSyncTransport {
   // ... SyncTransport methods ...
@@ -326,7 +326,7 @@ export or local-folder feature rather than transparent synchronization.
 Implement `SyncTransport` to add another provider:
 
 ```ts
-import type { SyncFileInfo, SyncTransport } from 'idb-free-sync';
+import type { SyncFileInfo, SyncTransport } from '@rcarls/idb-free-sync';
 
 class CustomTransport implements SyncTransport {
   readonly provider = 'custom';

@@ -55,19 +55,22 @@
     "commitlint": "commitlint",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "prepare": "simple-git-hooks",
+    "prepare": "yarn simple-git-hooks",
     "prepublishOnly": "yarn check",
+    "release": "yarn build && changeset publish",
     "test": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:package": "node test/package-exports.mjs",
     "test:run": "vitest run",
     "typecheck": "tsc --noEmit",
-    "typecheck:test": "tsc --noEmit -p tsconfig.test.json"
+    "typecheck:test": "tsc --noEmit -p tsconfig.test.json",
+    "version:packages": "changeset version"
   },
   "peerDependencies": {
     "idb": ">=8"
   },
   "devDependencies": {
+    "@changesets/cli": "^2.31.0",
     "@commitlint/cli": "^21.0.2",
     "@commitlint/config-conventional": "^21.0.2",
     "@nodable/entities": "^2.1.1",
@@ -99,10 +102,5 @@
     "@azure/msal-browser": "5.11.0",
     "dropbox": "10.34.0",
     "webdav": "5.10.0"
-  },
-  "dependenciesMeta": {
-    "dropbox@10.34.0": {
-      "unplugged": true
-    }
   }
 }
