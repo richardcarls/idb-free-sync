@@ -2510,6 +2510,9 @@ __metadata:
     webdav: "npm:5.10.0"
   peerDependencies:
     idb: ">=8"
+  dependenciesMeta:
+    dropbox@10.34.0:
+      unplugged: true
   languageName: unknown
   linkType: soft
 
