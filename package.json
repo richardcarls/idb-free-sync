@@ -1,5 +1,5 @@
 {
-  "name": "idb-free-sync",
+  "name": "@rcarls/idb-free-sync",
   "version": "0.7.3",
   "description": "Synchronize browser IndexedDB stores with cloud-backed JSON files.",
   "keywords": [
@@ -15,6 +15,10 @@
     "email": "richard.j.carls@gmail.com"
   },
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/richardcarls/idb-free-sync.git"
+  },
   "type": "module",
   "files": [
     "dist",
@@ -102,10 +106,5 @@
     "@azure/msal-browser": "5.11.0",
     "dropbox": "10.34.0",
     "webdav": "5.10.0"
-  },
-  "dependenciesMeta": {
-    "dropbox@10.34.0": {
-      "unplugged": true
-    }
   }
 }
