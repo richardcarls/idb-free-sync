@@ -2987,38 +2987,13 @@ __metadata:
   linkType: hard
 
 "iconv-lite@npm:^0.7.0":
-  version: 0.0.0-use.local
+  version: 0.7.2
   resolution: "iconv-lite@npm:0.7.2"
   dependencies:
-    "@azure/msal-browser": "npm:5.11.0"
-    "@commitlint/cli": "npm:^21.0.2"
-    "@commitlint/config-conventional": "npm:^21.0.2"
-    "@nodable/entities": "npm:^2.1.1"
-    "@types/gapi": "npm:*"
-    "@types/gapi.client.drive-v3": "npm:*"
-    "@types/google.accounts": "npm:^0.0.18"
-    "@types/node": "npm:^25.9.2"
-    "@types/node-fetch": "npm:^2.6.13"
-    "@vitest/coverage-v8": "npm:^4.1.8"
-    dropbox: "npm:10.34.0"
-    fake-indexeddb: "npm:^6.2.5"
-    idb: "npm:^8.0.0"
-    msw: "npm:^2.14.6"
-    prettier: "npm:^3.8.3"
-    simple-git-hooks: "npm:^2.13.1"
-    typescript: "npm:^5.3.3"
-    vite: "npm:^6.0.0"
-    vite-plugin-dts: "npm:^4.0.0"
-    vitest: "npm:^4.1.8"
-    webdav: "npm:5.10.0"
-  peerDependencies:
-    idb: ">=8"
-  dependenciesMeta:
-    dropbox@10.34.0:
-      unplugged: true
+    safer-buffer: "npm:>= 2.1.2 < 3.0.0"
   checksum: 10c0/3c228920f3bd307f56bf8363706a776f4a060eb042f131cd23855ceca962951b264d0997ab38a1ad340e1c5df8499ed26e1f4f0db6b2a2ad9befaff22f14b722
-  languageName: unknown
-  linkType: soft
+  languageName: node
+  linkType: hard
 
 "idb-free-sync@workspace:.":
   version: 0.0.0-use.local
@@ -4259,6 +4234,13 @@ __metadata:
   dependencies:
     queue-microtask: "npm:^1.2.2"
   checksum: 10c0/200b5ab25b5b8b7113f9901bfe3afc347e19bb7475b267d55ad0eb86a62a46d77510cb0f232507c9e5d497ebda569a08a9867d0d14f57a82ad5564d991588b39
+  languageName: node
+  linkType: hard
+
+"safer-buffer@npm:>= 2.1.2 < 3.0.0":
+  version: 2.1.2
+  resolution: "safer-buffer@npm:2.1.2"
+  checksum: 10c0/7e3c8b2e88a1841c9671094bbaeebd94448111dd90a81a1f606f3f67708a6ec57763b3b47f06da09fc6054193e0e6709e77325415dc8422b04497a8070fa02d4
   languageName: node
   linkType: hard
 
