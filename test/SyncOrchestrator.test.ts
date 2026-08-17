@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   defaultResolve,
   syncStore,
+  type ArrayBlobFieldConfig,
   type BlobFieldConfig,
   type SyncRecord,
 } from '../src/SyncOrchestrator';
@@ -21,6 +22,12 @@ type RecipeRecord = SyncRecord & {
   id: string;
   name: string;
   imageUrl?: string;
+};
+type Photo = { key?: string; remoteUrl?: string; contentType?: string };
+type PhotoRecord = SyncRecord & {
+  id: string;
+  name: string;
+  photos?: Photo[];
 };
 
 const dbName = 'free-sync-orchestrator-test';
@@ -499,5 +506,182 @@ describe('syncStore – blobFields', () => {
       'r8.json',
       expect.objectContaining({ imageUrl: 'img.jpg' }),
     );
+  });
+});
+
+describe('syncStore – array blobFields', () => {
+  const jpegBlob = new Blob(['jpeg-data'], { type: 'image/jpeg' });
+  const webpBlob = new Blob(['webp-data'], { type: 'image/webp' });
+
+  const photosFieldConfig = (
+    store: BlobStore,
+  ): ArrayBlobFieldConfig<Photo> => ({
+    kind: 'array',
+    blobStore: store,
+    itemKey: (photo) => photo.key,
+    itemContentType: (photo) => photo.contentType,
+  });
+
+  it('uploads a blob per keyed item and keeps the field value as-is', async () => {
+    const localBlobs = new Map([
+      ['a1.jpg', jpegBlob],
+      ['b2.webp', webpBlob],
+    ]);
+    const store = mockBlobStore(localBlobs);
+    const sync = blobTransport();
+    const photos: Photo[] = [
+      { key: 'a1.jpg', contentType: 'image/jpeg' },
+      { key: 'b2.webp', contentType: 'image/webp' },
+    ];
+
+    await db.put('notes', { id: 'p1', name: 'Tacos', photos });
+
+    await syncStore<PhotoRecord>(db, sync, 'notes', {
+      blobFields: { photos: photosFieldConfig(store) },
+    });
+
+    expect(sync.putBlob).toHaveBeenCalledWith(
+      'notes',
+      'a1.jpg',
+      jpegBlob,
+      'image/jpeg',
+    );
+    expect(sync.putBlob).toHaveBeenCalledWith(
+      'notes',
+      'b2.webp',
+      webpBlob,
+      'image/webp',
+    );
+
+    // Field value serialised unchanged — items already store bare keys
+    expect(sync.put).toHaveBeenCalledWith(
+      'notes',
+      'p1.json',
+      expect.objectContaining({ photos }),
+    );
+  });
+
+  it('skips remote-only items with no key on upload', async () => {
+    const store = mockBlobStore(new Map([['local.jpg', jpegBlob]]));
+    const sync = blobTransport();
+
+    await db.put('notes', {
+      id: 'p2',
+      name: 'Scraped',
+      photos: [
+        { remoteUrl: 'https://example.com/hotlink.jpg' },
+        { key: 'local.jpg' },
+      ],
+    });
+
+    await syncStore<PhotoRecord>(db, sync, 'notes', {
+      blobFields: { photos: photosFieldConfig(store) },
+    });
+
+    expect(sync.putBlob).toHaveBeenCalledTimes(1);
+    expect(sync.putBlob).toHaveBeenCalledWith(
+      'notes',
+      'local.jpg',
+      jpegBlob,
+      undefined,
+    );
+  });
+
+  it('skips items whose blob already exists remotely', async () => {
+    const store = mockBlobStore(new Map([['dup.jpg', jpegBlob]]));
+    const sync = blobTransport(
+      [],
+      {},
+      [{ id: 'dup.jpg', syncKey: 'dup.jpg' }], // already remote
+    );
+
+    await db.put('notes', {
+      id: 'p3',
+      name: 'Dup',
+      photos: [{ key: 'dup.jpg' }],
+    });
+
+    await syncStore<PhotoRecord>(db, sync, 'notes', {
+      blobFields: { photos: photosFieldConfig(store) },
+    });
+
+    expect(sync.putBlob).not.toHaveBeenCalled();
+  });
+
+  it('downloads blobs per keyed item and stores the record unchanged', async () => {
+    const store = mockBlobStore();
+    const remotePhotos: Photo[] = [
+      { key: 'x1.jpg' },
+      { remoteUrl: 'https://example.com/x2.jpg' },
+    ];
+    const sync = blobTransport(
+      [{ id: 'p4.json', syncKey: 'p4.json' }],
+      { 'p4.json': { id: 'p4', name: 'Curry', photos: remotePhotos } },
+      [],
+      { 'x1.jpg': jpegBlob },
+    );
+
+    await syncStore<PhotoRecord>(db, sync, 'notes', {
+      blobFields: { photos: photosFieldConfig(store) },
+    });
+
+    expect(vi.mocked(store.put)).toHaveBeenCalledWith('x1.jpg', jpegBlob);
+    expect(vi.mocked(store.put)).toHaveBeenCalledTimes(1);
+    expect(await db.get('notes', 'p4')).toMatchObject({
+      photos: remotePhotos,
+    });
+  });
+
+  it('skips download for blobs already present locally', async () => {
+    const store = mockBlobStore(new Map([['have.jpg', jpegBlob]]));
+    const sync = blobTransport(
+      [{ id: 'p5.json', syncKey: 'p5.json' }],
+      { 'p5.json': { id: 'p5', name: 'Have', photos: [{ key: 'have.jpg' }] } },
+      [],
+      { 'have.jpg': jpegBlob },
+    );
+
+    await syncStore<PhotoRecord>(db, sync, 'notes', {
+      blobFields: { photos: photosFieldConfig(store) },
+    });
+
+    expect(sync.getBlob).not.toHaveBeenCalled();
+  });
+
+  it('handles records with a missing or non-array field without error', async () => {
+    const store = mockBlobStore();
+    const sync = blobTransport();
+
+    await db.put('notes', { id: 'p6', name: 'No Photos' });
+
+    await expect(
+      syncStore<PhotoRecord>(db, sync, 'notes', {
+        blobFields: { photos: photosFieldConfig(store) },
+      }),
+    ).resolves.toBeUndefined();
+
+    expect(sync.putBlob).not.toHaveBeenCalled();
+  });
+
+  it('does not push the same blob key twice across records', async () => {
+    const store = mockBlobStore(new Map([['shared.jpg', jpegBlob]]));
+    const sync = blobTransport();
+
+    await db.put('notes', {
+      id: 'p7',
+      name: 'One',
+      photos: [{ key: 'shared.jpg' }],
+    });
+    await db.put('notes', {
+      id: 'p8',
+      name: 'Two',
+      photos: [{ key: 'shared.jpg' }],
+    });
+
+    await syncStore<PhotoRecord>(db, sync, 'notes', {
+      blobFields: { photos: photosFieldConfig(store) },
+    });
+
+    expect(sync.putBlob).toHaveBeenCalledTimes(1);
   });
 });
