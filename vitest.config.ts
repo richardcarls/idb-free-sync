@@ -1,4 +1,4 @@
-import { defineConfig } from 'vitest/config';
+import { configDefaults, defineConfig } from 'vitest/config';
 
 export default defineConfig({
   // Keep Vitest's writable cache inside the Yarn PnP project boundary.
@@ -7,6 +7,10 @@ export default defineConfig({
   test: {
     // Browser APIs needed by the library are installed selectively in test/setup.ts.
     environment: 'node',
+
+    // scripts/*.test.mjs use the node:test runner (see test:release-scripts),
+    // not Vitest; exclude them alongside Vitest's usual defaults.
+    exclude: [...configDefaults.exclude, 'scripts/**'],
 
     setupFiles: ['./test/setup.ts'],
 

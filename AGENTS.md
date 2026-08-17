@@ -106,7 +106,7 @@ until a release is cut.
 # 1. Create a release branch from develop
 git checkout -b release/vX.Y.Z develop
 
-# 2. Apply all pending changesets — bumps package.json and writes CHANGELOG.md
+# 2. Apply all pending changesets: bumps package.json and writes CHANGELOG.md
 yarn version:packages
 
 # 3. Commit the version bump
@@ -121,7 +121,7 @@ git checkout develop
 git merge --no-ff main -m "chore(release): back-merge branch release/vX.Y.Z"
 git branch -d release/vX.Y.Z
 
-# 5. Push — merging to main triggers the release.yml publish workflow
+# 5. Push: the pushed tag triggers the release.yml publish workflow
 git push origin main develop --tags
 ```
 
@@ -129,28 +129,36 @@ git push origin main develop --tags
 
 Before the automated workflow can publish, complete these steps once:
 
-1. **Initial publish** — if the package does not yet exist on npm, publish manually:
+1. **Initial publish**: if the package does not yet exist on npm, publish manually:
 
    ```sh
    yarn build
    npm publish --access=public
    ```
 
-2. **Create the `npm` GitHub environment** — in repo Settings → Environments → New environment
+1. **Create the `npm` GitHub environment**: in repo Settings → Environments → New environment
    named `npm`. Optionally add required reviewers for a manual approval gate.
 
-3. **Add `NODE_AUTH_TOKEN` secret** — create a granular npm access token at
-   `https://www.npmjs.com/settings/<username>/tokens` with the `@rcarls/idb-free-sync` package scope
-   and **bypass-2FA** enabled. Store it as `NODE_AUTH_TOKEN` in the `npm` environment.
+1. **Register npm Trusted Publishing**: on the package's npm settings page
+   (`https://www.npmjs.com/package/@rcarls/idb-free-sync/access`), add a Trusted Publisher:
+   GitHub Actions, this repository, workflow file `release.yml`, environment `npm`. No npm
+   token is stored in GitHub; the workflow's `id-token: write` permission lets npm exchange
+   its OIDC token for a short-lived publish credential at publish time.
 
-   > Trusted Publishers (OIDC auth) is not available with Yarn 4 + Changesets: `yarn npm publish`
-   > does not perform the OIDC token exchange. A granular npm token is required. Provenance
-   > attestation via sigstore still works via `NPM_CONFIG_PROVENANCE=true`.
+   > `yarn npm publish` cannot perform this OIDC exchange: Yarn 4 only knows classic token
+   > auth. `scripts/publish-package.mjs` has Yarn pack the tarball (so `workspace:*`-style
+   > ranges resolve) but has the `npm` CLI (>=11.5.1) publish it, since only `npm publish`
+   > performs the Trusted Publishing exchange and attaches provenance automatically.
 
 ### How publish works
 
-Merging to `main` triggers `.github/workflows/release.yml`, which:
+Pushing a `vX.Y.Z` tag triggers `.github/workflows/release.yml`, which:
 
-1. Builds the package
-2. Runs `yarn changeset publish`, which publishes any package versions not yet on npm
-3. Attaches a provenance statement to the published artifact via sigstore
+1. Runs `yarn validate:release`: confirms HEAD carries an exact stable tag contained in
+   `origin/main`, that `package.json`'s version matches the tag, and that no changesets remain
+   pending.
+1. Runs `yarn check`: builds the package and runs the full test suite.
+1. Runs `yarn publish:package` (`scripts/publish-package.mjs`), which packs the tarball with
+   Yarn, publishes it with `npm publish` under npm Trusted Publishing (OIDC; no stored token),
+   and polls the registry until the published version's SLSA provenance attestation is
+   visible. A version already published and verified is skipped rather than re-published.
