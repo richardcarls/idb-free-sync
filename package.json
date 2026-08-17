@@ -1,6 +1,6 @@
 {
   "name": "@rcarls/idb-free-sync",
-  "version": "0.7.3",
+  "version": "0.8.0",
   "description": "Synchronize browser IndexedDB stores with cloud-backed JSON files.",
   "keywords": [
     "indexeddb",
