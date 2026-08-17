@@ -45,11 +45,14 @@ export type ConflictResolverCB<T extends SyncRecord = SyncRecord> =
   ResolveConflict<T>;
 
 /**
- * Configures blob sync for a single record field. The remote JSON stores the
- * raw blob key; `keyFromValue` and `valueFromKey` map between that key and the
- * local field value (e.g. an OPFS app URL).
+ * Configures blob sync for a single string record field. The remote JSON
+ * stores the raw blob key; `keyFromValue` and `valueFromKey` map between that
+ * key and the local field value (e.g. an OPFS app URL).
  */
 export interface BlobFieldConfig {
+  /** Discriminant; omit (or set `'scalar'`) for single string fields. */
+  kind?: 'scalar';
+
   /** Local storage backend for the binary blob. */
   blobStore: BlobStore;
 
@@ -71,6 +74,51 @@ export interface BlobFieldConfig {
 
   /** MIME type hint passed to the transport on upload. */
   contentType?: string;
+}
+
+/**
+ * Configures blob sync for a record field holding an **array of items**, where
+ * each item may reference a binary blob by key. Items whose `itemKey` returns
+ * `undefined` are skipped entirely (e.g. remote-only/hotlinked entries).
+ *
+ * Unlike {@link BlobFieldConfig}, the field value is never rewritten: items
+ * are expected to store the bare blob key, so local and remote JSON are
+ * identical. Only the referenced blobs are pushed/pulled.
+ */
+export interface ArrayBlobFieldConfig<Item = unknown> {
+  /** Discriminant selecting array-of-items blob sync. */
+  kind: 'array';
+
+  /** Local storage backend for the binary blobs. */
+  blobStore: BlobStore;
+
+  /**
+   * Extract the blob key from an array item. Return `undefined` to skip the
+   * item (no blob is uploaded or downloaded for it).
+   *
+   * Declared with method syntax so configs typed for a concrete item shape
+   * remain assignable to `ArrayBlobFieldConfig<unknown>`.
+   *
+   * @example (photo) => photo.key
+   */
+  itemKey(item: Item): string | undefined;
+
+  /**
+   * Per-item MIME type hint passed to the transport on upload. When omitted
+   * (or returning `undefined`) no hint is sent.
+   *
+   * @example (photo) => photo.contentType
+   */
+  itemContentType?(item: Item): string | undefined;
+}
+
+/** Any per-field blob sync configuration accepted by `blobFields`. */
+export type AnyBlobFieldConfig = BlobFieldConfig | ArrayBlobFieldConfig;
+
+function isArrayBlobFieldConfig(
+  config: AnyBlobFieldConfig,
+): config is ArrayBlobFieldConfig {
+  return config.kind === 'array';
 }
 
 /** Options passed to {@link syncStore}. */
@@ -97,16 +145,22 @@ export interface SyncOptions<T extends SyncRecord = SyncRecord> {
 
   /**
    * Per-field blob sync configuration. Each key names a record field whose
-   * value references a binary blob. During upload the blob is pushed to the
-   * transport and the field value is replaced with the blob key in the remote
-   * JSON. During download the blob is fetched and the key is rewritten to the
+   * value references one or more binary blobs.
+   *
+   * With a {@link BlobFieldConfig} (scalar string field), the blob is pushed
+   * on upload and the field value is replaced with the blob key in the remote
+   * JSON; on download the blob is fetched and the key is rewritten to the
    * local value before the record is stored in IDB.
+   *
+   * With an {@link ArrayBlobFieldConfig} (array-of-items field), each item's
+   * blob (resolved via `itemKey`) is pushed/pulled and the field value is
+   * stored as-is on both sides.
    *
    * Requires the transport to implement {@link BlobSyncTransport}. An error is
    * thrown at the start of `syncStore` when this option is set and the
    * transport does not support blobs.
    */
-  blobFields?: { [K in keyof T & string]?: BlobFieldConfig };
+  blobFields?: { [K in keyof T & string]?: AnyBlobFieldConfig };
 }
 
 /**
@@ -179,9 +233,35 @@ function buildResolver<T extends SyncRecord>(
 }
 
 /**
+ * Uploads a single blob to the transport unless a blob with the same key was
+ * already pushed (or listed remotely) this sync cycle. `uploadedKeys` is
+ * mutated to record the push.
+ */
+async function uploadBlob(
+  transport: BlobSyncTransport,
+  storeName: string,
+  blobStore: BlobStore,
+  blobKey: string,
+  contentType: string | undefined,
+  uploadedKeys: Set<string>,
+): Promise<void> {
+  if (uploadedKeys.has(blobKey)) {
+    return;
+  }
+
+  const blob = await blobStore.get(blobKey);
+
+  if (blob) {
+    await transport.putBlob(storeName, blobKey, blob, contentType);
+    uploadedKeys.add(blobKey);
+  }
+}
+
+/**
  * Uploads any blob fields from a local record to the transport. Returns a
- * shallow copy of the record with each blob field replaced by its blob key
- * (the form stored in remote JSON).
+ * shallow copy of the record with each scalar blob field replaced by its blob
+ * key (the form stored in remote JSON). Array blob fields are uploaded
+ * per-item and the field value is left unchanged.
  *
  * `uploadedKeys` is mutated to track blobs already uploaded this sync cycle so
  * that the same blob is not pushed twice when multiple records share a key.
@@ -197,9 +277,34 @@ async function uploadBlobFields<T extends SyncRecord>(
 
   for (const [field, config] of Object.entries(blobFields) as [
     string,
-    BlobFieldConfig,
+    AnyBlobFieldConfig,
   ][]) {
     const rawValue = record[field];
+
+    if (isArrayBlobFieldConfig(config)) {
+      if (!Array.isArray(rawValue)) {
+        continue;
+      }
+
+      for (const item of rawValue) {
+        const blobKey = config.itemKey(item);
+
+        if (!blobKey) {
+          continue;
+        }
+
+        await uploadBlob(
+          transport,
+          storeName,
+          config.blobStore,
+          blobKey,
+          config.itemContentType?.(item),
+          uploadedKeys,
+        );
+      }
+
+      continue;
+    }
 
     if (typeof rawValue !== 'string' || !rawValue) {
       continue;
@@ -209,24 +314,47 @@ async function uploadBlobFields<T extends SyncRecord>(
       ? config.keyFromValue(rawValue)
       : rawValue;
 
-    if (!uploadedKeys.has(blobKey)) {
-      const blob = await config.blobStore.get(blobKey);
-
-      if (blob) {
-        await transport.putBlob(storeName, blobKey, blob, config.contentType);
-        uploadedKeys.add(blobKey);
-      }
-    }
+    await uploadBlob(
+      transport,
+      storeName,
+      config.blobStore,
+      blobKey,
+      config.contentType,
+      uploadedKeys,
+    );
 
     (out as Record<string, unknown>)[field] = blobKey;
   }
+
   return out;
 }
 
 /**
+ * Downloads a single blob from the transport into the local blobStore unless
+ * it is already present locally.
+ */
+async function downloadBlob(
+  transport: BlobSyncTransport,
+  storeName: string,
+  blobStore: BlobStore,
+  blobKey: string,
+): Promise<void> {
+  if (await blobStore.has(blobKey)) {
+    return;
+  }
+
+  const blob = await transport.getBlob(storeName, blobKey);
+
+  if (blob) {
+    await blobStore.put(blobKey, blob);
+  }
+}
+
+/**
  * Downloads any blob fields referenced in a remote record into the local
- * blobStore. Returns a shallow copy of the record with each blob field
- * rewritten to the local value (e.g. an app URL).
+ * blobStore. Returns a shallow copy of the record with each scalar blob field
+ * rewritten to the local value (e.g. an app URL). Array blob fields are
+ * downloaded per-item and the field value is left unchanged.
  */
 async function downloadBlobFields<T extends SyncRecord>(
   transport: BlobSyncTransport,
@@ -238,26 +366,39 @@ async function downloadBlobFields<T extends SyncRecord>(
 
   for (const [field, config] of Object.entries(blobFields) as [
     string,
-    BlobFieldConfig,
+    AnyBlobFieldConfig,
   ][]) {
-    const blobKey = record[field];
+    const rawValue = record[field];
 
-    if (typeof blobKey !== 'string' || !blobKey) {
+    if (isArrayBlobFieldConfig(config)) {
+      if (!Array.isArray(rawValue)) {
+        continue;
+      }
+
+      for (const item of rawValue) {
+        const blobKey = config.itemKey(item);
+
+        if (blobKey) {
+          await downloadBlob(transport, storeName, config.blobStore, blobKey);
+        }
+      }
+
       continue;
     }
 
-    if (!(await config.blobStore.has(blobKey))) {
-      const blob = await transport.getBlob(storeName, blobKey);
-      if (blob) {
-        await config.blobStore.put(blobKey, blob);
-      }
+    if (typeof rawValue !== 'string' || !rawValue) {
+      continue;
     }
 
+    await downloadBlob(transport, storeName, config.blobStore, rawValue);
+
     const localValue = config.valueFromKey
-      ? config.valueFromKey(blobKey)
-      : blobKey;
+      ? config.valueFromKey(rawValue)
+      : rawValue;
+
     (out as Record<string, unknown>)[field] = localValue;
   }
+
   return out;
 }
 
@@ -288,7 +429,7 @@ async function downloadBlobFields<T extends SyncRecord>(
  * @param options   Optional conflict resolution and field configuration.
  */
 export async function syncStore<T extends SyncRecord>(
-  db: IDBPDatabase<any>,
+  db: IDBPDatabase,
   transport: SyncTransport,
   storeName: string,
   options?: SyncOptions<T>,

@@ -1,6 +1,6 @@
 {
   "name": "@rcarls/idb-free-sync",
-  "version": "0.7.3",
+  "version": "0.8.0",
   "description": "Synchronize browser IndexedDB stores with cloud-backed JSON files.",
   "keywords": [
     "indexeddb",
@@ -55,19 +55,23 @@
   },
   "scripts": {
     "build": "vite build",
-    "check": "yarn format:check && yarn typecheck && yarn typecheck:test && yarn test:coverage && yarn build && yarn test:package",
+    "check": "yarn format:check && yarn typecheck && yarn typecheck:test && yarn test:coverage && yarn build && yarn test:package && yarn test:release-scripts",
     "commitlint": "commitlint",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "prepare": "yarn simple-git-hooks",
     "prepublishOnly": "yarn check",
-    "release": "yarn build && changeset publish",
+    "publish:package": "node scripts/publish-package.mjs",
+    "publish:package:dry-run": "node scripts/publish-package.mjs --dry-run",
+    "release:check": "yarn validate:release && yarn check && yarn publish:package:dry-run",
     "test": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:package": "node test/package-exports.mjs",
+    "test:release-scripts": "node --test scripts/validate-release.test.mjs scripts/publish-package.test.mjs",
     "test:run": "vitest run",
     "typecheck": "tsc --noEmit",
     "typecheck:test": "tsc --noEmit -p tsconfig.test.json",
+    "validate:release": "node scripts/validate-release.mjs",
     "version:packages": "changeset version"
   },
   "peerDependencies": {
@@ -89,6 +93,7 @@
     "msw": "^2.14.6",
     "prettier": "^3.8.3",
     "simple-git-hooks": "^2.13.1",
+    "tar": "^7.5.22",
     "typescript": "^5.3.3",
     "vite": "^6.0.0",
     "vite-plugin-dts": "^4.0.0",

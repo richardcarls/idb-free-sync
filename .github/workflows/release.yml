@@ -2,15 +2,20 @@ name: Publish to npm
 
 on:
   push:
-    branches: [main]
+    tags:
+      - 'v*'
   workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: npm-release
+  cancel-in-progress: false
+
 jobs:
   publish:
-    name: Publish to npm
+    name: Publish package
     runs-on: ubuntu-latest
     environment: npm
     permissions:
@@ -20,24 +25,30 @@ jobs:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Enable Corepack
         run: corepack enable
 
       - uses: actions/setup-node@v5
         with:
-          node-version: '22'
+          node-version: '24'
           cache: yarn
-          registry-url: 'https://registry.npmjs.org'
 
       - name: Install dependencies
         run: yarn install --immutable
 
-      - name: Build
-        run: yarn build
+      - name: Fetch release refs
+        run: git fetch --force origin main:refs/remotes/origin/main --tags
 
-      - name: Publish to npm
-        run: yarn changeset publish
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
-          NPM_CONFIG_PROVENANCE: true
+      - name: Validate release tag
+        run: yarn validate:release
+
+      - name: Build, validate, and test
+        run: yarn check
+
+      # Yarn packs the tarball so `check` above builds from source, but npm
+      # performs the registry publish itself so Trusted Publishing can
+      # exchange this job's OIDC token; see scripts/publish-package.mjs.
+      - name: Publish and verify package
+        run: yarn publish:package
