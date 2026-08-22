@@ -1,12 +1,6 @@
-import {
-  type AccountInfo,
-  InteractionRequiredAuthError,
-  type PublicClientApplication,
-} from '@azure/msal-browser';
-
 import { type SyncFileInfo } from './SyncTransport';
 import { type BlobSyncTransport } from './BlobSyncTransport';
-import { createMsalClient } from './internal/msalAdapter';
+import { type TokenProvider } from './TokenProvider';
 import { request } from './internal/request';
 
 const GRAPH_BASE = 'https://graph.microsoft.com/v1.0';
@@ -25,16 +19,10 @@ export class OneDriveTransport implements BlobSyncTransport {
   readonly provider = 'onedrive';
   readonly scopes = ['Files.ReadWrite.AppFolder', 'openid', 'profile'];
 
-  private readonly clientId: string;
-  private msalInstance: PublicClientApplication | null = null;
-  private initPromise: Promise<void> | null = null;
-
-  constructor(clientId: string) {
-    this.clientId = clientId;
-  }
+  constructor(private readonly tokenProvider: TokenProvider) {}
 
   async list(storeName: string): Promise<SyncFileInfo[]> {
-    const token = await this.getToken();
+    const token = await this.tokenProvider();
     const url = `${GRAPH_BASE}/me/drive/special/approot:/${storeName}:/children?$select=id,name,lastModifiedDateTime,createdDateTime,size,file`;
     const response = await request(url, {
       headers: { Authorization: `Bearer ${token}` },
@@ -49,6 +37,7 @@ export class OneDriveTransport implements BlobSyncTransport {
     }
 
     const data = (await response.json()) as { value: GraphDriveItem[] };
+
     return (data.value ?? [])
       .filter((item) => item.file)
       .map((item) => ({
@@ -61,7 +50,7 @@ export class OneDriveTransport implements BlobSyncTransport {
   }
 
   async get<T>(storeName: string, syncKey: string): Promise<T | undefined> {
-    const token = await this.getToken();
+    const token = await this.tokenProvider();
     const url = `${GRAPH_BASE}/me/drive/special/approot:/${storeName}/${syncKey}:/content`;
     const response = await request(url, {
       headers: { Authorization: `Bearer ${token}` },
@@ -83,7 +72,7 @@ export class OneDriveTransport implements BlobSyncTransport {
     syncKey: string,
     value: T,
   ): Promise<SyncFileInfo> {
-    const token = await this.getToken();
+    const token = await this.tokenProvider();
 
     // Ensure parent directory exists
     await this.ensureDirectory(storeName, token);
@@ -103,6 +92,7 @@ export class OneDriveTransport implements BlobSyncTransport {
     }
 
     const item = (await response.json()) as GraphDriveItem;
+
     return {
       id: item.id,
       syncKey: item.name,
@@ -119,19 +109,23 @@ export class OneDriveTransport implements BlobSyncTransport {
   ): Promise<void> {
     if (soft) {
       const value = await this.get(storeName, syncKey);
+
       if (value && typeof value === 'object') {
         await this.put(storeName, syncKey, { ...value, deleted: true });
       }
+
       return;
     }
 
-    const token = await this.getToken();
+    const token = await this.tokenProvider();
     const fileId = await this.getFileId(storeName, syncKey, token);
+
     if (!fileId) {
       return;
     }
 
     const url = `${GRAPH_BASE}/me/drive/items/${fileId}`;
+
     await request(url, {
       method: 'DELETE',
       headers: { Authorization: `Bearer ${token}` },
@@ -141,14 +135,17 @@ export class OneDriveTransport implements BlobSyncTransport {
   async deleteAll(storeName: string, soft?: boolean): Promise<void> {
     if (soft) {
       const files = await this.list(storeName);
+
       await Promise.allSettled(
         files.map((f) => this.delete(storeName, f.syncKey, true)),
       );
+
       return;
     }
 
-    const token = await this.getToken();
+    const token = await this.tokenProvider();
     const dirId = await this.getDirectoryId(storeName, token);
+
     if (!dirId) {
       return;
     }
@@ -169,7 +166,8 @@ export class OneDriveTransport implements BlobSyncTransport {
     blob: Blob,
     contentType = 'application/octet-stream',
   ): Promise<SyncFileInfo> {
-    const token = await this.getToken();
+    const token = await this.tokenProvider();
+
     await this.ensureDirectory(`${storeName}-blobs`, token);
 
     const url = `${GRAPH_BASE}/me/drive/special/approot:/${storeName}-blobs/${blobKey}:/content`;
@@ -187,6 +185,7 @@ export class OneDriveTransport implements BlobSyncTransport {
     }
 
     const item = (await response.json()) as GraphDriveItem;
+
     return {
       id: item.id,
       syncKey: item.name,
@@ -197,7 +196,7 @@ export class OneDriveTransport implements BlobSyncTransport {
   }
 
   async getBlob(storeName: string, blobKey: string): Promise<Blob | undefined> {
-    const token = await this.getToken();
+    const token = await this.tokenProvider();
     const url = `${GRAPH_BASE}/me/drive/special/approot:/${storeName}-blobs/${blobKey}:/content`;
     const response = await request(url, {
       headers: { Authorization: `Bearer ${token}` },
@@ -215,7 +214,7 @@ export class OneDriveTransport implements BlobSyncTransport {
   }
 
   async listBlobs(storeName: string): Promise<SyncFileInfo[]> {
-    const token = await this.getToken();
+    const token = await this.tokenProvider();
     const url = `${GRAPH_BASE}/me/drive/special/approot:/${storeName}-blobs:/children?$select=id,name,lastModifiedDateTime,createdDateTime,size,file`;
     const response = await request(url, {
       headers: { Authorization: `Bearer ${token}` },
@@ -230,6 +229,7 @@ export class OneDriveTransport implements BlobSyncTransport {
     }
 
     const data = (await response.json()) as { value: GraphDriveItem[] };
+
     return (data.value ?? [])
       .filter((item) => item.file)
       .map((item) => ({
@@ -242,8 +242,9 @@ export class OneDriveTransport implements BlobSyncTransport {
   }
 
   async deleteBlob(storeName: string, blobKey: string): Promise<void> {
-    const token = await this.getToken();
+    const token = await this.tokenProvider();
     const fileId = await this.getFileId(`${storeName}-blobs`, blobKey, token);
+
     if (!fileId) {
       return;
     }
@@ -252,44 +253,6 @@ export class OneDriveTransport implements BlobSyncTransport {
       method: 'DELETE',
       headers: { Authorization: `Bearer ${token}` },
     });
-  }
-
-  private async getToken(): Promise<string> {
-    await this.ensureMsal();
-    const accounts = this.msalInstance!.getAllAccounts();
-    const account: AccountInfo | null = accounts[0] ?? null;
-
-    try {
-      const result = await this.msalInstance!.acquireTokenSilent({
-        scopes: this.scopes,
-        account: account ?? undefined,
-      });
-      return result.accessToken;
-    } catch (err) {
-      if (err instanceof InteractionRequiredAuthError || !account) {
-        const result = await this.msalInstance!.acquireTokenPopup({
-          scopes: this.scopes,
-        });
-        return result.accessToken;
-      }
-      throw err;
-    }
-  }
-
-  private async ensureMsal(): Promise<void> {
-    if (this.msalInstance) {
-      return;
-    }
-
-    if (!this.initPromise) {
-      this.initPromise = (async () => {
-        this.msalInstance = createMsalClient(this.clientId);
-
-        await this.msalInstance.initialize();
-        await this.msalInstance.handleRedirectPromise();
-      })();
-    }
-    await this.initPromise;
   }
 
   private async ensureDirectory(name: string, token: string): Promise<void> {
