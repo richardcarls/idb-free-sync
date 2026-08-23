@@ -1,16 +1,28 @@
-/// <reference types="gapi" />
-/// <reference types="gapi.client.drive-v3" />
-/// <reference types="google.accounts" />
-
 import { type SyncFileInfo } from './SyncTransport';
 import { type BlobSyncTransport } from './BlobSyncTransport';
-import { getGoogleClient } from './internal/googleAdapter';
+import { type TokenProvider } from './TokenProvider';
 import { request } from './internal/request';
 
-type DriveFile = gapi.client.drive.File;
+const DRIVE_API = 'https://www.googleapis.com/drive/v3';
+const DRIVE_UPLOAD_API = 'https://www.googleapis.com/upload/drive/v3';
+const FILE_FIELDS =
+  'id,name,mimeType,parents,properties,modifiedTime,createdTime,md5Checksum,size';
+
+/** The subset of the Drive v3 File resource this transport reads/writes. */
+type DriveFile = {
+  id?: string;
+  name?: string;
+  mimeType?: string;
+  parents?: string[];
+  properties?: Record<string, string>;
+  modifiedTime?: string;
+  createdTime?: string;
+  md5Checksum?: string;
+  size?: string;
+};
 type DriveFileWithId = Omit<DriveFile, 'id'> & { id: string };
 
-/** Syncs to Google Drive `appDataFolder` via the Drive v3 API. */
+/** Syncs to Google Drive `appDataFolder` via the Drive v3 REST API. */
 export class GoogleDriveTransport implements BlobSyncTransport {
   readonly provider = 'google';
   readonly scopes = [
@@ -18,22 +30,12 @@ export class GoogleDriveTransport implements BlobSyncTransport {
     'https://www.googleapis.com/auth/drive.file',
   ];
 
-  private readonly clientId: string;
-
-  constructor(clientId: string) {
-    this.clientId = clientId;
-  }
+  constructor(private readonly tokenProvider: TokenProvider) {}
 
   async list(storeName: string): Promise<SyncFileInfo[]> {
-    const folder = await this.getDriveFolder(storeName);
-    const result = await (
-      await this.client
-    ).drive.files.list({
-      q: `'${folder.id}' in parents`,
-      spaces: 'appDataFolder',
-    });
-
-    return (result.result.files ?? []).map((file) => this.toSyncFileInfo(file));
+    return (await this.listRawFiles(storeName)).map((file) =>
+      this.toSyncFileInfo(file),
+    );
   }
 
   async get<T>(storeName: string, syncKey: string): Promise<T | undefined> {
@@ -44,14 +46,9 @@ export class GoogleDriveTransport implements BlobSyncTransport {
       return undefined;
     }
 
-    const response = await (
-      await this.client
-    ).drive.files.get({
-      fileId: file.id,
-      alt: 'media',
-    });
+    const response = await this.driveFetch(`/files/${file.id}?alt=media`);
 
-    return JSON.parse(response.body) as T;
+    return JSON.parse(await response.text()) as T;
   }
 
   async put<T>(
@@ -65,42 +62,18 @@ export class GoogleDriveTransport implements BlobSyncTransport {
     const mimeType = 'application/json';
     const existingId = files.find(({ name }) => name === syncKey)?.id;
 
-    const formData = new FormData();
-
-    formData.append(
-      'resource',
-      new File(
-        [
-          JSON.stringify({
-            mimeType,
-            name: syncKey,
-            parents: existingId ? null : [folder.id],
-            properties: meta,
-          }),
-        ],
-        syncKey,
-        { type: mimeType },
-      ),
-    );
-
-    formData.append(
-      'media',
+    const driveFile = await this.uploadMultipart(
+      existingId,
+      syncKey,
+      {
+        mimeType,
+        name: syncKey,
+        parents: existingId ? undefined : [folder.id],
+        properties: meta,
+      },
       new File([JSON.stringify(value)], syncKey, { type: mimeType }),
+      FILE_FIELDS,
     );
-
-    await this.client;
-
-    const url = existingId
-      ? `https://www.googleapis.com/upload/drive/v3/files/${existingId}?uploadType=multipart&fields=id,version,name,modifiedTime,createdTime,md5Checksum,size,properties`
-      : `https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,version,name,modifiedTime,createdTime,md5Checksum,size,properties`;
-
-    const response = await request(url, {
-      method: existingId ? 'PATCH' : 'POST',
-      headers: { Authorization: `Bearer ${gapi.auth.getToken().access_token}` },
-      body: formData,
-    });
-
-    const driveFile = (await response.json()) as DriveFile;
 
     return this.toSyncFileInfo(driveFile);
   }
@@ -129,7 +102,7 @@ export class GoogleDriveTransport implements BlobSyncTransport {
         );
       }
     } else {
-      await (await this.client).drive.files.delete({ fileId: existingId });
+      await this.driveFetch(`/files/${existingId}`, { method: 'DELETE' });
     }
   }
 
@@ -146,7 +119,7 @@ export class GoogleDriveTransport implements BlobSyncTransport {
       const folder = await this.getDriveFolder(storeName);
 
       if (folder?.id) {
-        await (await this.client).drive.files.delete({ fileId: folder.id });
+        await this.driveFetch(`/files/${folder.id}`, { method: 'DELETE' });
       }
     }
   }
@@ -165,37 +138,13 @@ export class GoogleDriveTransport implements BlobSyncTransport {
     const existing = await this.listRawBlobFiles(storeName);
     const existingId = existing.find(({ name }) => name === blobKey)?.id;
 
-    const formData = new FormData();
-
-    formData.append(
-      'resource',
-      new File(
-        [
-          JSON.stringify({
-            name: blobKey,
-            parents: existingId ? null : [folder.id],
-          }),
-        ],
-        blobKey,
-        { type: 'application/json' },
-      ),
+    const driveFile = await this.uploadMultipart(
+      existingId,
+      blobKey,
+      { name: blobKey, parents: existingId ? undefined : [folder.id] },
+      new File([blob], blobKey, { type: contentType }),
+      'id,name,modifiedTime,createdTime,md5Checksum,size',
     );
-
-    formData.append('media', new File([blob], blobKey, { type: contentType }));
-
-    await this.client;
-
-    const url = existingId
-      ? `https://www.googleapis.com/upload/drive/v3/files/${existingId}?uploadType=multipart&fields=id,name,modifiedTime,createdTime,md5Checksum,size`
-      : `https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,modifiedTime,createdTime,md5Checksum,size`;
-
-    const response = await request(url, {
-      method: existingId ? 'PATCH' : 'POST',
-      headers: { Authorization: `Bearer ${gapi.auth.getToken().access_token}` },
-      body: formData,
-    });
-
-    const driveFile = (await response.json()) as DriveFile;
 
     return this.toSyncFileInfo(driveFile);
   }
@@ -208,27 +157,15 @@ export class GoogleDriveTransport implements BlobSyncTransport {
       return undefined;
     }
 
-    const response = await (
-      await this.client
-    ).drive.files.get({ fileId: file.id, alt: 'media' });
+    const response = await this.driveFetch(`/files/${file.id}?alt=media`);
 
-    return new Blob([response.body]);
+    return response.blob();
   }
 
   async listBlobs(storeName: string): Promise<SyncFileInfo[]> {
-    try {
-      const folder = await this.getBlobFolder(storeName);
-      const result = await (
-        await this.client
-      ).drive.files.list({
-        q: `'${folder.id}' in parents`,
-        spaces: 'appDataFolder',
-      });
-
-      return (result.result.files ?? []).map((f) => this.toSyncFileInfo(f));
-    } catch {
-      return [];
-    }
+    return (await this.listRawBlobFiles(storeName)).map((f) =>
+      this.toSyncFileInfo(f),
+    );
   }
 
   async deleteBlob(storeName: string, blobKey: string): Promise<void> {
@@ -239,7 +176,7 @@ export class GoogleDriveTransport implements BlobSyncTransport {
       return;
     }
 
-    await (await this.client).drive.files.delete({ fileId: existingId });
+    await this.driveFetch(`/files/${existingId}`, { method: 'DELETE' });
   }
 
   private toSyncFileInfo(file: DriveFile): SyncFileInfo {
@@ -254,51 +191,85 @@ export class GoogleDriveTransport implements BlobSyncTransport {
     };
   }
 
-  private async listRawFiles(storeName: string): Promise<DriveFile[]> {
-    const folder = await this.getDriveFolder(storeName);
-    const result = await (
-      await this.client
-    ).drive.files.list({
-      q: `'${folder.id}' in parents`,
-      spaces: 'appDataFolder',
+  /** Bearer-authenticated fetch against the Drive v3 REST API. */
+  private async driveFetch(
+    path: string,
+    init?: RequestInit,
+  ): Promise<Response> {
+    const token = await this.tokenProvider();
+
+    return request(`${DRIVE_API}${path}`, {
+      ...init,
+      headers: { ...init?.headers, Authorization: `Bearer ${token}` },
+    });
+  }
+
+  /** Drive's multipart upload endpoint, used for both create and update. */
+  private async uploadMultipart(
+    existingId: string | undefined,
+    fileName: string,
+    resource: Record<string, unknown>,
+    contents: File,
+    fields: string,
+  ): Promise<DriveFile> {
+    const token = await this.tokenProvider();
+
+    const formData = new FormData();
+
+    formData.append(
+      'resource',
+      new File([JSON.stringify(resource)], fileName, {
+        type: 'application/json',
+      }),
+    );
+
+    formData.append('media', contents);
+
+    const url = existingId
+      ? `${DRIVE_UPLOAD_API}/files/${existingId}?uploadType=multipart&fields=${fields}`
+      : `${DRIVE_UPLOAD_API}/files?uploadType=multipart&fields=${fields}`;
+
+    const response = await request(url, {
+      method: existingId ? 'PATCH' : 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: formData,
     });
 
-    return result.result.files ?? [];
+    return (await response.json()) as DriveFile;
+  }
+
+  private async listFiles(query: string): Promise<DriveFile[]> {
+    const response = await this.driveFetch(
+      `/files?q=${encodeURIComponent(query)}&spaces=appDataFolder&fields=${encodeURIComponent(`files(${FILE_FIELDS})`)}`,
+    );
+    const data = (await response.json()) as { files?: DriveFile[] };
+
+    return data.files ?? [];
+  }
+
+  private async listRawFiles(storeName: string): Promise<DriveFile[]> {
+    const folder = await this.getDriveFolder(storeName);
+
+    return this.listFiles(`'${folder.id}' in parents`);
   }
 
   private async listRawBlobFiles(storeName: string): Promise<DriveFile[]> {
     try {
       const folder = await this.getBlobFolder(storeName);
-      const result = await (
-        await this.client
-      ).drive.files.list({
-        q: `'${folder.id}' in parents`,
-        spaces: 'appDataFolder',
-      });
 
-      return result.result.files ?? [];
+      return this.listFiles(`'${folder.id}' in parents`);
     } catch {
       return [];
     }
-  }
-
-  private get client(): Promise<typeof gapi.client> {
-    return getGoogleClient(this.clientId, this.scopes);
   }
 
   private async getDriveFolder(
     name: string,
     create?: boolean,
   ): Promise<DriveFileWithId> {
-    const folderList =
-      (
-        await (
-          await this.client
-        ).drive.files.list({
-          q: `name = '${name}' and mimeType = 'application/vnd.google-apps.folder'`,
-          spaces: 'appDataFolder',
-        })
-      ).result?.files ?? [];
+    const folderList = await this.listFiles(
+      `name = '${name}' and mimeType = 'application/vnd.google-apps.folder'`,
+    );
 
     if (!folderList.length) {
       if (!create) {
@@ -311,19 +282,18 @@ export class GoogleDriveTransport implements BlobSyncTransport {
         throw new Error('No id generated for folder.');
       }
 
-      return (
-        await (
-          await this.client
-        ).drive.files.create({
-          uploadType: 'multipart',
-          resource: {
-            id: ids[0],
-            mimeType: 'application/vnd.google-apps.folder',
-            name,
-            parents: ['appDataFolder'],
-          },
-        })
-      ).result as DriveFileWithId;
+      const response = await this.driveFetch('/files', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: ids[0],
+          mimeType: 'application/vnd.google-apps.folder',
+          name,
+          parents: ['appDataFolder'],
+        }),
+      });
+
+      return (await response.json()) as DriveFileWithId;
     }
 
     return folderList[0] as DriveFileWithId;
@@ -341,12 +311,11 @@ export class GoogleDriveTransport implements BlobSyncTransport {
       throw new RangeError(`count of ${count} is out of bounds.`);
     }
 
-    return (
-      (
-        await (
-          await this.client
-        ).drive.files.generateIds({ count, space: 'appDataFolder' })
-      ).result.ids ?? []
+    const response = await this.driveFetch(
+      `/files/generateIds?count=${count}&space=appDataFolder`,
     );
+    const data = (await response.json()) as { ids?: string[] };
+
+    return data.ids ?? [];
   }
 }
