@@ -82,9 +82,6 @@
     "@commitlint/cli": "^21.0.2",
     "@commitlint/config-conventional": "^21.0.2",
     "@nodable/entities": "^2.1.1",
-    "@types/gapi": "*",
-    "@types/gapi.client.drive-v3": "*",
-    "@types/google.accounts": "^0.0.18",
     "@types/node": "^25.9.2",
     "@types/node-fetch": "^2.6.13",
     "@vitest/coverage-v8": "^4.1.8",
@@ -108,7 +105,6 @@
     "commit-msg": "yarn commitlint --edit \"$1\""
   },
   "dependencies": {
-    "@azure/msal-browser": "5.11.0",
     "dropbox": "10.34.0",
     "webdav": "5.10.0"
   }

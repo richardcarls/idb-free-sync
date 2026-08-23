@@ -1,61 +1,28 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Makes constructor spies available to Vitest's hoisted SDK module mocks.
-const { Dropbox, PublicClientApplication, createClient } = vi.hoisted(() => ({
+const { Dropbox, createClient } = vi.hoisted(() => ({
   Dropbox: vi.fn(),
-  PublicClientApplication: vi.fn(),
   createClient: vi.fn(),
 }));
 
 vi.mock('dropbox', () => ({ Dropbox }));
-vi.mock('@azure/msal-browser', () => ({ PublicClientApplication }));
 vi.mock('webdav', () => ({ createClient }));
 
 import { createDropboxClient } from '../src/internal/dropboxAdapter';
-import { createMsalClient } from '../src/internal/msalAdapter';
 import { createWebDAVClient } from '../src/internal/webdavAdapter';
 
 beforeEach(() => {
   vi.clearAllMocks();
-
-  vi.stubGlobal('localStorage', {
-    getItem: vi.fn(() => 'dropbox-token'),
-  });
-
-  vi.stubGlobal('window', {
-    location: { origin: 'https://app.example' },
-  });
 });
 
 describe('SDK adapters', () => {
-  it('constructs Dropbox with the stored access token and global fetch', () => {
-    createDropboxClient();
+  it('constructs Dropbox with the given access token and global fetch', () => {
+    createDropboxClient('dropbox-token');
 
     expect(Dropbox).toHaveBeenCalledWith({
       accessToken: 'dropbox-token',
       fetch: globalThis.fetch,
-    });
-
-    vi.stubGlobal('localStorage', { getItem: () => null });
-
-    createDropboxClient();
-
-    expect(Dropbox).toHaveBeenLastCalledWith({
-      accessToken: '',
-      fetch: globalThis.fetch,
-    });
-  });
-
-  it('constructs MSAL with the application identity settings', () => {
-    createMsalClient('client-id');
-
-    expect(PublicClientApplication).toHaveBeenCalledWith({
-      auth: {
-        clientId: 'client-id',
-        authority: 'https://login.microsoftonline.com/common',
-        redirectUri: 'https://app.example',
-      },
-      cache: { cacheLocation: 'localStorage' },
     });
   });
 
