@@ -280,12 +280,32 @@ export class GoogleDriveTransport implements BlobSyncTransport {
   }
 
   private async listFiles(query: string): Promise<DriveFile[]> {
-    const response = await this.driveFetch(
-      `/files?q=${encodeURIComponent(query)}&spaces=appDataFolder&fields=${encodeURIComponent(`files(${FILE_FIELDS})`)}`,
-    );
-    const data = (await response.json()) as { files?: DriveFile[] };
+    const files: DriveFile[] = [];
+    let pageToken: string | undefined;
 
-    return data.files ?? [];
+    do {
+      const params = new URLSearchParams({
+        q: query,
+        spaces: 'appDataFolder',
+        fields: `nextPageToken,files(${FILE_FIELDS})`,
+        pageSize: '1000',
+      });
+
+      if (pageToken) {
+        params.set('pageToken', pageToken);
+      }
+
+      const response = await this.driveFetch(`/files?${params}`);
+      const data = (await response.json()) as {
+        files?: DriveFile[];
+        nextPageToken?: string;
+      };
+
+      files.push(...(data.files ?? []));
+      pageToken = data.nextPageToken;
+    } while (pageToken);
+
+    return files;
   }
 
   private async listRawFiles(storeName: string): Promise<DriveFile[]> {

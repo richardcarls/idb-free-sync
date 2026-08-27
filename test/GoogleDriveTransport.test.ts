@@ -297,6 +297,73 @@ describe('GoogleDriveTransport', () => {
     });
     expect(drive.filter(({ name }) => name === 'a.json')).toHaveLength(2);
   });
+
+  it('follows every Drive page when listing and updating large stores', async () => {
+    const folder: FakeFile = {
+      id: 'notes-folder',
+      name: 'notes',
+      mimeType: 'application/vnd.google-apps.folder',
+      parents: ['appDataFolder'],
+    };
+    const records = Array.from(
+      { length: 283 },
+      (_, index): FakeFile => ({
+        id: `record-${index}`,
+        name: `${index}.json`,
+        parents: [folder.id],
+        content: JSON.stringify({ index }),
+        modifiedTime: '2026-01-01T00:00:00Z',
+      }),
+    );
+
+    drive = [folder, ...records];
+
+    server.use(
+      http.get(`${DRIVE_API}/files`, ({ request }) => {
+        const url = new URL(request.url);
+        const q = url.searchParams.get('q') ?? '';
+        const nameMatch = /^name = '(.+)' and mimeType/.exec(q);
+        const parentMatch = /^'(.+)' in parents$/.exec(q);
+
+        if (nameMatch) {
+          const matchingFolder = findFolderByName(nameMatch[1]);
+
+          return HttpResponse.json({
+            files: matchingFolder ? [matchingFolder] : [],
+          });
+        }
+
+        const matching = parentMatch
+          ? drive.filter((file) => file.parents?.includes(parentMatch[1]))
+          : [];
+        const offset = Number(url.searchParams.get('pageToken') ?? 0);
+        const files = matching.slice(offset, offset + 100);
+        const nextOffset = offset + files.length;
+
+        return HttpResponse.json({
+          files,
+          ...(nextOffset < matching.length && {
+            nextPageToken: String(nextOffset),
+          }),
+        });
+      }),
+    );
+
+    const transport = new GoogleDriveTransport(tokenProvider);
+
+    expect(await transport.count('notes')).toBe(283);
+    expect(await transport.get<{ index: number }>('notes', '282.json')).toEqual(
+      { index: 282 },
+    );
+
+    await transport.put('notes', '282.json', { index: 999 });
+
+    expect(await transport.count('notes')).toBe(283);
+    expect(await transport.get<{ index: number }>('notes', '282.json')).toEqual(
+      { index: 999 },
+    );
+  });
+
   it('throws when Drive cannot generate a folder ID', async () => {
     server.use(
       http.get(`${DRIVE_API}/files/generateIds`, () =>
