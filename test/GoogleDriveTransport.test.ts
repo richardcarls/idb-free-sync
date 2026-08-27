@@ -251,6 +251,52 @@ describe('GoogleDriveTransport', () => {
     expect(await transport.count('notes')).toBe(2);
   });
 
+  it('treats duplicate Drive filenames as one logical record without deleting cloud data', async () => {
+    const folder: FakeFile = {
+      id: 'notes-folder',
+      name: 'notes',
+      mimeType: 'application/vnd.google-apps.folder',
+      parents: ['appDataFolder'],
+    };
+
+    drive = [
+      folder,
+      {
+        id: 'a-old',
+        name: 'a.json',
+        parents: [folder.id],
+        content: JSON.stringify({ version: 'old' }),
+        modifiedTime: '2026-01-01T00:00:00Z',
+      },
+      {
+        id: 'a-new',
+        name: 'a.json',
+        parents: [folder.id],
+        content: JSON.stringify({ version: 'new' }),
+        modifiedTime: '2026-01-02T00:00:00Z',
+      },
+      {
+        id: 'b',
+        name: 'b.json',
+        parents: [folder.id],
+        content: JSON.stringify({ version: 'only' }),
+        modifiedTime: '2026-01-01T00:00:00Z',
+      },
+    ];
+
+    const transport = new GoogleDriveTransport(tokenProvider);
+
+    expect(await transport.count('notes')).toBe(2);
+    expect(await transport.get('notes', 'a.json')).toEqual({ version: 'new' });
+
+    await transport.put('notes', 'a.json', { version: 'updated' });
+
+    expect(await transport.count('notes')).toBe(2);
+    expect(await transport.get('notes', 'a.json')).toEqual({
+      version: 'updated',
+    });
+    expect(drive.filter(({ name }) => name === 'a.json')).toHaveLength(2);
+  });
   it('throws when Drive cannot generate a folder ID', async () => {
     server.use(
       http.get(`${DRIVE_API}/files/generateIds`, () =>

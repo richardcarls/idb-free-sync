@@ -30,14 +30,16 @@ export class GoogleDriveTransport implements BlobSyncTransport {
   constructor(private readonly tokenProvider: TokenProvider) {}
 
   async list(storeName: string): Promise<SyncFileInfo[]> {
-    return (await this.listRawFiles(storeName)).map((file) =>
-      this.toSyncFileInfo(file),
+    return this.uniqueFilesByName(await this.listRawFiles(storeName)).map(
+      (file) => this.toSyncFileInfo(file),
     );
   }
 
   async get<T>(storeName: string, syncKey: string): Promise<T | undefined> {
     const files = await this.listRawFiles(storeName);
-    const file = files.find(({ name }) => name === syncKey);
+    const file = this.preferredFile(
+      files.filter(({ name }) => name === syncKey),
+    );
 
     if (!file?.id) {
       return undefined;
@@ -57,7 +59,9 @@ export class GoogleDriveTransport implements BlobSyncTransport {
     const folder = await this.getDriveFolder(storeName, true);
     const files = await this.listRawFiles(storeName);
     const mimeType = 'application/json';
-    const existingId = files.find(({ name }) => name === syncKey)?.id;
+    const existingId = this.preferredFile(
+      files.filter(({ name }) => name === syncKey),
+    )?.id;
 
     const driveFile = await this.uploadMultipart(
       existingId,
@@ -133,7 +137,9 @@ export class GoogleDriveTransport implements BlobSyncTransport {
   ): Promise<SyncFileInfo> {
     const folder = await this.getBlobFolder(storeName, true);
     const existing = await this.listRawBlobFiles(storeName);
-    const existingId = existing.find(({ name }) => name === blobKey)?.id;
+    const existingId = this.preferredFile(
+      existing.filter(({ name }) => name === blobKey),
+    )?.id;
 
     const driveFile = await this.uploadMultipart(
       existingId,
@@ -148,7 +154,9 @@ export class GoogleDriveTransport implements BlobSyncTransport {
 
   async getBlob(storeName: string, blobKey: string): Promise<Blob | undefined> {
     const files = await this.listRawBlobFiles(storeName);
-    const file = files.find(({ name }) => name === blobKey);
+    const file = this.preferredFile(
+      files.filter(({ name }) => name === blobKey),
+    );
 
     if (!file?.id) {
       return undefined;
@@ -160,9 +168,45 @@ export class GoogleDriveTransport implements BlobSyncTransport {
   }
 
   async listBlobs(storeName: string): Promise<SyncFileInfo[]> {
-    return (await this.listRawBlobFiles(storeName)).map((f) =>
-      this.toSyncFileInfo(f),
+    return this.uniqueFilesByName(await this.listRawBlobFiles(storeName)).map(
+      (f) => this.toSyncFileInfo(f),
     );
+  }
+
+  private preferredFile(files: DriveFile[]): DriveFile | undefined {
+    return files.reduce<DriveFile | undefined>((preferred, file) => {
+      if (!preferred) {
+        return file;
+      }
+
+      return this.fileTimestamp(file) > this.fileTimestamp(preferred)
+        ? file
+        : preferred;
+    }, undefined);
+  }
+
+  private uniqueFilesByName(files: DriveFile[]): DriveFile[] {
+    const filesByName = new Map<string, DriveFile>();
+
+    for (const file of files) {
+      const key = file.name ?? file.id ?? '';
+      const preferred = filesByName.get(key);
+
+      if (
+        !preferred ||
+        this.fileTimestamp(file) > this.fileTimestamp(preferred)
+      ) {
+        filesByName.set(key, file);
+      }
+    }
+
+    return [...filesByName.values()];
+  }
+
+  private fileTimestamp(file: DriveFile): number {
+    const timestamp = Date.parse(file.modifiedTime ?? file.createdTime ?? '');
+
+    return Number.isNaN(timestamp) ? 0 : timestamp;
   }
 
   async deleteBlob(storeName: string, blobKey: string): Promise<void> {
