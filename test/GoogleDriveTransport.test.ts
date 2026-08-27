@@ -205,6 +205,25 @@ describe('GoogleDriveTransport', () => {
     expect(await transport.list('notes')).toHaveLength(1);
   });
 
+  it('coalesces concurrent first writes into one store folder', async () => {
+    const transport = new GoogleDriveTransport(tokenProvider);
+
+    await Promise.all(
+      Array.from({ length: 20 }, (_, index) =>
+        transport.put('notes', `${index}.json`, { index }),
+      ),
+    );
+
+    expect(
+      drive.filter(
+        (file) =>
+          file.name === 'notes' &&
+          file.mimeType === 'application/vnd.google-apps.folder',
+      ),
+    ).toHaveLength(1);
+    expect(await transport.count('notes')).toBe(20);
+  });
+
   it('soft deletes by marking properties.deleted, and hard deletes by removing the file', async () => {
     const transport = new GoogleDriveTransport(tokenProvider);
 

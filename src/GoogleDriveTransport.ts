@@ -26,6 +26,7 @@ type DriveFileWithId = Omit<DriveFile, 'id'> & { id: string };
 export class GoogleDriveTransport implements BlobSyncTransport {
   readonly provider = 'google';
   readonly scopes = ['https://www.googleapis.com/auth/drive.appdata'];
+  private readonly folderPromises = new Map<string, Promise<DriveFileWithId>>();
 
   constructor(private readonly tokenProvider: TokenProvider) {}
 
@@ -121,6 +122,7 @@ export class GoogleDriveTransport implements BlobSyncTransport {
 
       if (folder?.id) {
         await this.driveFetch(`/files/${folder.id}`, { method: 'DELETE' });
+        this.folderPromises.delete(storeName);
       }
     }
   }
@@ -324,7 +326,28 @@ export class GoogleDriveTransport implements BlobSyncTransport {
     }
   }
 
-  private async getDriveFolder(
+  private getDriveFolder(
+    name: string,
+    create?: boolean,
+  ): Promise<DriveFileWithId> {
+    const existing = this.folderPromises.get(name);
+
+    if (existing) {
+      return existing;
+    }
+
+    const loading = this.loadDriveFolder(name, create).catch((error) => {
+      this.folderPromises.delete(name);
+
+      throw error;
+    });
+
+    this.folderPromises.set(name, loading);
+
+    return loading;
+  }
+
+  private async loadDriveFolder(
     name: string,
     create?: boolean,
   ): Promise<DriveFileWithId> {
