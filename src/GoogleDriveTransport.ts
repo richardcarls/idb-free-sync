@@ -25,10 +25,7 @@ type DriveFileWithId = Omit<DriveFile, 'id'> & { id: string };
 /** Syncs to Google Drive `appDataFolder` via the Drive v3 REST API. */
 export class GoogleDriveTransport implements BlobSyncTransport {
   readonly provider = 'google';
-  readonly scopes = [
-    'https://www.googleapis.com/auth/drive.appdata',
-    'https://www.googleapis.com/auth/drive.file',
-  ];
+  readonly scopes = ['https://www.googleapis.com/auth/drive.appdata'];
 
   constructor(private readonly tokenProvider: TokenProvider) {}
 

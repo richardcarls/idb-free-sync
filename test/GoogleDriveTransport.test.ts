@@ -160,7 +160,12 @@ beforeEach(() => {
 
 describe('GoogleDriveTransport', () => {
   it('reports its provider identity and scopes', () => {
-    expectTransportIdentity(new GoogleDriveTransport(tokenProvider), 'google');
+    const transport = new GoogleDriveTransport(tokenProvider);
+
+    expectTransportIdentity(transport, 'google');
+    expect(transport.scopes).toEqual([
+      'https://www.googleapis.com/auth/drive.appdata',
+    ]);
   });
 
   it('creates the store folder on first write and round-trips JSON records', async () => {
