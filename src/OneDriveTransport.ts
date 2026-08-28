@@ -17,7 +17,7 @@ type GraphDriveItem = {
 /** Syncs to the OneDrive application folder via Microsoft Graph. */
 export class OneDriveTransport implements BlobSyncTransport {
   readonly provider = 'onedrive';
-  readonly scopes = ['Files.ReadWrite.AppFolder', 'openid', 'profile'];
+  readonly scopes = ['Files.ReadWrite.AppFolder'];
 
   constructor(private readonly tokenProvider: TokenProvider) {}
 

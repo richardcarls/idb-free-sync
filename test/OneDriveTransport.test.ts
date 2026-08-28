@@ -28,7 +28,10 @@ function tokenProvider() {
 
 describe('OneDriveTransport', () => {
   it('reports its provider identity and scopes', () => {
-    expectTransportIdentity(new OneDriveTransport(tokenProvider), 'onedrive');
+    const transport = new OneDriveTransport(tokenProvider);
+
+    expectTransportIdentity(transport, 'onedrive');
+    expect(transport.scopes).toEqual(['Files.ReadWrite.AppFolder']);
   });
 
   it('calls the token provider before each API operation', async () => {
