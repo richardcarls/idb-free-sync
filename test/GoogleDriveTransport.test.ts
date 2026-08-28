@@ -321,6 +321,38 @@ describe('GoogleDriveTransport', () => {
     expect(drive.filter(({ name }) => name === 'a.json')).toEqual([]);
     expect(await transport.get('notes', 'a.json')).toBeUndefined();
   });
+
+  it('rejects failed Drive metadata requests', async () => {
+    const transport = new GoogleDriveTransport(tokenProvider);
+
+    server.use(
+      http.get(`${DRIVE_API}/files`, () =>
+        HttpResponse.json({ error: 'unauthorized' }, { status: 401 }),
+      ),
+    );
+
+    await expect(transport.list('notes')).rejects.toThrow(
+      'Google Drive request failed: GET /files?',
+    );
+
+    await expect(transport.listBlobs('notes')).rejects.toThrow(
+      'Google Drive request failed: GET /files?',
+    );
+  });
+
+  it('rejects failed Drive upload requests', async () => {
+    const transport = new GoogleDriveTransport(tokenProvider);
+    await transport.put('notes', 'a.json', { id: 'a' });
+
+    server.use(
+      http.patch(`${DRIVE_UPLOAD_API}/files/:id`, () =>
+        HttpResponse.json({ error: 'unavailable' }, { status: 503 }),
+      ),
+    );
+
+    await expect(transport.put('notes', 'a.json', { id: 'a' })).rejects.toThrow(
+      'Google Drive request failed: PATCH /files/',
+    );
   });
 
   it('follows every Drive page when listing and updating large stores', async () => {

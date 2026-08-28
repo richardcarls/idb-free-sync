@@ -252,11 +252,14 @@ export class GoogleDriveTransport implements BlobSyncTransport {
     init?: RequestInit,
   ): Promise<Response> {
     const token = await this.tokenProvider();
-
-    return request(`${DRIVE_API}${path}`, {
+    const response = await request(`${DRIVE_API}${path}`, {
       ...init,
       headers: { ...init?.headers, Authorization: `Bearer ${token}` },
     });
+
+    this.assertResponseOk(response, init?.method ?? 'GET', path);
+
+    return response;
   }
 
   /** Drive's multipart upload endpoint, used for both create and update. */
@@ -290,7 +293,25 @@ export class GoogleDriveTransport implements BlobSyncTransport {
       body: formData,
     });
 
+    this.assertResponseOk(
+      response,
+      existingId ? 'PATCH' : 'POST',
+      existingId ? `/files/${existingId}` : '/files',
+    );
+
     return (await response.json()) as DriveFile;
+  }
+
+  private assertResponseOk(
+    response: Response,
+    method: string,
+    path: string,
+  ): void {
+    if (!response.ok) {
+      throw new Error(
+        `Google Drive request failed: ${method} ${path} returned ${response.status}.`,
+      );
+    }
   }
 
   private async listFiles(query: string): Promise<DriveFile[]> {
@@ -329,13 +350,9 @@ export class GoogleDriveTransport implements BlobSyncTransport {
   }
 
   private async listRawBlobFiles(storeName: string): Promise<DriveFile[]> {
-    try {
-      const folder = await this.getBlobFolder(storeName);
+    const folder = await this.getBlobFolder(storeName);
 
-      return this.listFiles(`'${folder.id}' in parents`);
-    } catch {
-      return [];
-    }
+    return this.listFiles(`'${folder.id}' in parents`);
   }
 
   private getDriveFolder(
