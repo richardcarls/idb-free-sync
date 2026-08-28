@@ -86,9 +86,11 @@ export class GoogleDriveTransport implements BlobSyncTransport {
     soft?: boolean,
   ): Promise<void> {
     const files = await this.listRawFiles(storeName);
-    const existingId = files.find(({ name }) => name === syncKey)?.id;
+    const existingIds = files
+      .filter(({ name, id }) => name === syncKey && id)
+      .map(({ id }) => id as string);
 
-    if (!existingId) {
+    if (!existingIds.length) {
       return;
     }
 
@@ -104,7 +106,11 @@ export class GoogleDriveTransport implements BlobSyncTransport {
         );
       }
     } else {
-      await this.driveFetch(`/files/${existingId}`, { method: 'DELETE' });
+      await Promise.all(
+        existingIds.map((id) =>
+          this.driveFetch(`/files/${id}`, { method: 'DELETE' }),
+        ),
+      );
     }
   }
 
@@ -213,13 +219,19 @@ export class GoogleDriveTransport implements BlobSyncTransport {
 
   async deleteBlob(storeName: string, blobKey: string): Promise<void> {
     const files = await this.listRawBlobFiles(storeName);
-    const existingId = files.find(({ name }) => name === blobKey)?.id;
+    const existingIds = files
+      .filter(({ name, id }) => name === blobKey && id)
+      .map(({ id }) => id as string);
 
-    if (!existingId) {
+    if (!existingIds.length) {
       return;
     }
 
-    await this.driveFetch(`/files/${existingId}`, { method: 'DELETE' });
+    await Promise.all(
+      existingIds.map((id) =>
+        this.driveFetch(`/files/${id}`, { method: 'DELETE' }),
+      ),
+    );
   }
 
   private toSyncFileInfo(file: DriveFile): SyncFileInfo {

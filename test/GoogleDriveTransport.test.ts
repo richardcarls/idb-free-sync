@@ -315,6 +315,12 @@ describe('GoogleDriveTransport', () => {
       version: 'updated',
     });
     expect(drive.filter(({ name }) => name === 'a.json')).toHaveLength(2);
+
+    await transport.delete('notes', 'a.json');
+
+    expect(drive.filter(({ name }) => name === 'a.json')).toEqual([]);
+    expect(await transport.get('notes', 'a.json')).toBeUndefined();
+  });
   });
 
   it('follows every Drive page when listing and updating large stores', async () => {
@@ -428,6 +434,37 @@ describe('GoogleDriveTransport', () => {
     await expect(
       transport.deleteBlob('notes', 'missing.jpg'),
     ).resolves.toBeUndefined();
+  });
+
+  it('deletes every blob with a duplicate Drive name', async () => {
+    const folder: FakeFile = {
+      id: 'blobs-folder',
+      name: 'notes-blobs',
+      mimeType: 'application/vnd.google-apps.folder',
+      parents: ['appDataFolder'],
+    };
+
+    drive = [
+      folder,
+      {
+        id: 'blob-old',
+        name: 'img.jpg',
+        parents: [folder.id],
+        modifiedTime: '2026-01-01T00:00:00Z',
+      },
+      {
+        id: 'blob-new',
+        name: 'img.jpg',
+        parents: [folder.id],
+        modifiedTime: '2026-01-02T00:00:00Z',
+      },
+    ];
+
+    const transport = new GoogleDriveTransport(tokenProvider);
+
+    await transport.deleteBlob('notes', 'img.jpg');
+
+    expect(drive.filter(({ name }) => name === 'img.jpg')).toEqual([]);
   });
 
   it('listBlobs returns an empty array when the blobs folder does not exist yet', async () => {
