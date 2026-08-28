@@ -66,12 +66,19 @@ built-in transport they affect.
 ## Provider Notes
 
 - OPFS depends on `navigator.storage.getDirectory()`.
-- Google Drive depends on host-provided `google` and `gapi` globals and stores
-  data in `appDataFolder`.
-- OneDrive uses MSAL and Microsoft Graph's application folder.
-- Dropbox reads `dropboxAccessToken` from `localStorage` and uses
-  `/Apps/RecipeTome`.
-- WebDAV uses `/RecipeTome`.
+- Google Drive, OneDrive, and Dropbox are OAuth transports: each takes a
+  `TokenProvider` (`() => Promise<string>`) in its constructor rather than
+  driving sign-in itself. This library never touches `google`/`gapi` globals,
+  MSAL's `PublicClientApplication`, or Dropbox's `DropboxAuth`. Obtaining and
+  refreshing the token is entirely the host app's job, using each provider's
+  own official client library. Google Drive talks to the Drive v3 REST API
+  over `fetch` and stores data in `appDataFolder`; OneDrive talks to
+  Microsoft Graph's application folder over `fetch`; Dropbox still uses the
+  `dropbox` SDK's `Dropbox` class (not `DropboxAuth`) for data operations and
+  stores files under `/Apps/RecipeTome`.
+- WebDAV uses `/RecipeTome` and is not an OAuth transport: it takes
+  connection config (URL, username/password, or bearer token) directly, since
+  there's no "OAuth app" concept for an arbitrary self-hosted server.
 - `NullTransport` is intentionally a no-op.
 
 Do not silently rename provider storage roots or local-storage keys; applications
