@@ -57,6 +57,16 @@ describe('DropboxTransport', () => {
     expect(calls).toBe(2);
   });
 
+  it('propagates token-provider failures from optional reads and deletes', async () => {
+    const error = new Error('token refresh failed');
+    const transport = new DropboxTransport(() => Promise.reject(error));
+
+    await expect(transport.get('notes', 'a.json')).rejects.toBe(error);
+    await expect(transport.getBlob('notes', 'img.jpg')).rejects.toBe(error);
+    await expect(transport.listBlobs('notes')).rejects.toBe(error);
+    await expect(transport.deleteBlob('notes', 'img.jpg')).rejects.toBe(error);
+  });
+
   it('lists only files, handles a missing folder, and rethrows other errors', async () => {
     client.filesListFolder.mockResolvedValueOnce({
       result: { entries: [file, { '.tag': 'folder', name: 'folder' }] },

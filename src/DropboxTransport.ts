@@ -51,8 +51,9 @@ export class DropboxTransport implements BlobSyncTransport {
   }
 
   async get<T>(storeName: string, syncKey: string): Promise<T | undefined> {
+    const client = await this.getClient();
+
     try {
-      const client = await this.getClient();
       const response = await client.filesDownload({
         path: `${APP_PATH}/${storeName}/${syncKey}`,
       });
@@ -164,8 +165,9 @@ export class DropboxTransport implements BlobSyncTransport {
   }
 
   async getBlob(storeName: string, blobKey: string): Promise<Blob | undefined> {
+    const client = await this.getClient();
+
     try {
-      const client = await this.getClient();
       const response = await client.filesDownload({
         path: `${APP_PATH}/${storeName}-blobs/${blobKey}`,
       });
@@ -179,9 +181,9 @@ export class DropboxTransport implements BlobSyncTransport {
 
   async listBlobs(storeName: string): Promise<SyncFileInfo[]> {
     const path = `${APP_PATH}/${storeName}-blobs`;
+    const client = await this.getClient();
 
     try {
-      const client = await this.getClient();
       const response = await client.filesListFolder({ path });
 
       return (response.result.entries ?? [])
@@ -200,9 +202,9 @@ export class DropboxTransport implements BlobSyncTransport {
   }
 
   async deleteBlob(storeName: string, blobKey: string): Promise<void> {
-    try {
-      const client = await this.getClient();
+    const client = await this.getClient();
 
+    try {
       await client.filesDeleteV2({
         path: `${APP_PATH}/${storeName}-blobs/${blobKey}`,
       });
