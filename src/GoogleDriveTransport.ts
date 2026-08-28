@@ -28,6 +28,11 @@ export class GoogleDriveTransport implements BlobSyncTransport {
   readonly scopes = ['https://www.googleapis.com/auth/drive.appdata'];
   private readonly folderPromises = new Map<string, Promise<DriveFileWithId>>();
 
+  /**
+   * Creates a Google Drive transport.
+   *
+   * @param tokenProvider - returns a current Drive access token
+   */
   constructor(private readonly tokenProvider: TokenProvider) {}
 
   async list(storeName: string): Promise<SyncFileInfo[]> {

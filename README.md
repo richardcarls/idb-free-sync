@@ -121,38 +121,51 @@ content.
 
 ## Transports
 
+This library is headless with respect to OAuth: cloud transports never drive
+interactive sign-in (no popups, redirects, or PKCE) themselves. Instead, each
+one takes a `TokenProvider` (`() => Promise<string>`) that the host app
+implements using the provider's own official client library (Google Identity
+Services, MSAL, Dropbox's `DropboxAuth`, ...) to obtain and refresh a bearer
+token. The transport calls it before every API operation and has no knowledge
+of how the token was obtained, so the host app owns 100% of the connect UI/UX.
+
 ### Google Drive
 
 ```ts
-const transport = new GoogleDriveTransport(googleOAuthClientId);
+const transport = new GoogleDriveTransport(tokenProvider);
 ```
 
-The host page must load Google Identity Services and the Google API client so
-the global `google` and `gapi` objects are available. Files are stored in the
-Google Drive application data folder. An optional `syncUserId` value in
-`localStorage` is used as the OAuth login hint.
-
-Required scopes are available from `transport.scopes`.
+Talks to the Drive v3 REST API directly over `fetch` (no `gapi`/`google`
+globals or host-loaded scripts required by this library). `tokenProvider` must
+resolve to an access token carrying the `drive.appdata` scope
+(available from `transport.scopes`), typically obtained via Google Identity
+Services' OAuth2 token client (`google.accounts.oauth2.initTokenClient`) in
+the host app. Files are stored in the Google Drive application data folder.
 
 ### OneDrive
 
 ```ts
-const transport = new OneDriveTransport(microsoftApplicationClientId);
+const transport = new OneDriveTransport(tokenProvider);
 ```
 
-Uses MSAL browser authentication and Microsoft Graph. Configure the application
-redirect URI to match `window.location.origin`. Files are stored in the
-application folder.
+Talks to Microsoft Graph directly over `fetch`. `tokenProvider` must resolve
+to an access token carrying the `Files.ReadWrite.AppFolder` scope (available
+from `transport.scopes`), typically obtained via MSAL Browser
+(`PublicClientApplication.acquireTokenSilent`/`acquireTokenPopup`) in the host
+app (configure the Azure app registration's redirect URI to match
+`window.location.origin`). Files are stored in the application folder.
 
 ### Dropbox
 
 ```ts
-localStorage.setItem('dropboxAccessToken', accessToken);
-const transport = new DropboxTransport();
+const transport = new DropboxTransport(tokenProvider);
 ```
 
-Uses the access token from `localStorage.dropboxAccessToken`. Files are stored
-under `/Apps/RecipeTome`.
+`tokenProvider` must resolve to a valid Dropbox access token, typically
+obtained and refreshed via the official `dropbox` package's `DropboxAuth`
+class (OAuth2 authorization-code flow with PKCE, `token_access_type=offline`
+for a refresh token) in the host app. Files are stored under
+`/Apps/RecipeTome`.
 
 ### WebDAV
 

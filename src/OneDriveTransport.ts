@@ -19,6 +19,11 @@ export class OneDriveTransport implements BlobSyncTransport {
   readonly provider = 'onedrive';
   readonly scopes = ['Files.ReadWrite.AppFolder'];
 
+  /**
+   * Creates a OneDrive transport.
+   *
+   * @param tokenProvider - returns a current Microsoft Graph access token
+   */
   constructor(private readonly tokenProvider: TokenProvider) {}
 
   async list(storeName: string): Promise<SyncFileInfo[]> {

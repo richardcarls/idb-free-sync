@@ -12,6 +12,11 @@ export class DropboxTransport implements BlobSyncTransport {
   readonly provider = 'dropbox';
   readonly scopes: string[] = [];
 
+  /**
+   * Creates a Dropbox transport.
+   *
+   * @param tokenProvider - returns a current Dropbox access token
+   */
   constructor(private readonly tokenProvider: TokenProvider) {}
 
   private async getClient(): Promise<Dropbox> {
