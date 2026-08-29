@@ -429,7 +429,14 @@ async function downloadBlobFields<T extends SyncRecord>(
  * @param options   Optional conflict resolution and field configuration.
  */
 export async function syncStore<T extends SyncRecord>(
-  db: IDBPDatabase,
+  // `IDBPDatabase` (implicitly `IDBPDatabase<unknown>`) rejects a
+  // schema-typed `IDBPDatabase<YourSchema>` argument here — the `idb`
+  // package's cursor/async-iterator return types aren't structurally
+  // bivariant across DBTypes, even though this function only ever accesses
+  // stores by name. `any` is the standard workaround for a schema-agnostic
+  // helper like this one; it doesn't weaken anything callers rely on since
+  // no schema-specific type ever flows out of `syncStore` itself.
+  db: IDBPDatabase<any>,
   transport: SyncTransport,
   storeName: string,
   options?: SyncOptions<T>,
