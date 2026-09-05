@@ -6,7 +6,9 @@ import {
   syncStore,
   type ArrayBlobFieldConfig,
   type BlobFieldConfig,
+  type SyncItemSettledEvent,
   type SyncRecord,
+  type SyncWriteEvent,
 } from '../src/SyncOrchestrator';
 import type { BlobSyncTransport } from '../src/BlobSyncTransport';
 import type { BlobStore } from '../src/BlobStore';
@@ -311,6 +313,258 @@ describe('syncStore', () => {
     });
 
     expect(console.error).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('syncStore – signal', () => {
+  it('skips all work when the signal is already aborted', async () => {
+    await db.put('notes', { id: 'a', title: 'A' });
+
+    const sync = transport([{ id: 'a.json', syncKey: 'a.json' }], {
+      'a.json': { id: 'a', title: 'Remote A' },
+    });
+    const controller = new AbortController();
+
+    controller.abort();
+
+    await syncStore<NoteRecord>(db, sync, 'notes', {
+      signal: controller.signal,
+    });
+
+    expect(sync.list).not.toHaveBeenCalled();
+    expect(await db.get('notes', 'a')).toMatchObject({ title: 'A' });
+  });
+
+  it('does not start queued local deletes once aborted mid cursor-scan', async () => {
+    for (const id of ['a', 'b', 'c']) {
+      await db.put('notes', { id, title: id });
+    }
+
+    const files = ['a', 'b', 'c'].map((id) => ({
+      id: `${id}.json`,
+      syncKey: `${id}.json`,
+    }));
+    const sync = transport(files);
+    const controller = new AbortController();
+    let resolveCalls = 0;
+
+    await syncStore<NoteRecord>(db, sync, 'notes', {
+      signal: controller.signal,
+      resolve: () => {
+        resolveCalls += 1;
+
+        if (resolveCalls === 1) {
+          controller.abort();
+        }
+
+        return 'delete';
+      },
+    });
+
+    expect(resolveCalls).toBe(1);
+    expect(await db.get('notes', 'a')).toMatchObject({ title: 'a' });
+    expect(await db.get('notes', 'b')).toMatchObject({ title: 'b' });
+    expect(await db.get('notes', 'c')).toMatchObject({ title: 'c' });
+  });
+
+  it('lets already-started queue items settle but starts no new ones once aborted mid-queue', async () => {
+    const ids = Array.from({ length: 8 }, (_, i) => `u${i}`);
+
+    for (const id of ids) {
+      await db.put('notes', { id, title: id });
+    }
+
+    const sync = transport();
+    const controller = new AbortController();
+    let putCalls = 0;
+
+    vi.mocked(sync.put).mockImplementation(async (_store, key) => {
+      putCalls += 1;
+      controller.abort();
+
+      return { id: key, syncKey: key };
+    });
+
+    await syncStore<NoteRecord>(db, sync, 'notes', {
+      signal: controller.signal,
+    });
+
+    // Bounded concurrency means only the first wave of already-launched
+    // uploads can call `put` — aborting inside the very first call must
+    // still stop the remaining, not-yet-started uploads from ever running.
+    expect(putCalls).toBeGreaterThanOrEqual(1);
+    expect(putCalls).toBeLessThan(ids.length);
+  });
+});
+
+describe('syncStore – onBeforeWrite', () => {
+  it('reports the previous value for a keep-remote update, undefined for a new remote-only record, and never fires for uploads', async () => {
+    await db.put('notes', { id: 'updated', title: 'Local (stale)' });
+    await db.put('notes', { id: 'uploaded', title: 'Local only' });
+
+    const sync = transport(
+      [
+        { id: 'updated.json', syncKey: 'updated.json' },
+        { id: 'new.json', syncKey: 'new.json' },
+      ],
+      {
+        'updated.json': { id: 'updated', title: 'Remote (fresh)' },
+        'new.json': { id: 'new', title: 'Brand new' },
+      },
+    );
+    const events: SyncWriteEvent<NoteRecord>[] = [];
+
+    await syncStore<NoteRecord>(db, sync, 'notes', {
+      resolve: (local) =>
+        local.id === 'uploaded' ? 'keep-local' : 'keep-remote',
+      onBeforeWrite: (event) => {
+        events.push(event as SyncWriteEvent<NoteRecord>);
+      },
+    });
+
+    const byKey = new Map(events.map((event) => [event.key, event]));
+
+    expect(byKey.get('updated')).toMatchObject({
+      kind: 'put',
+      previous: { title: 'Local (stale)' },
+    });
+
+    expect(byKey.get('new')).toMatchObject({
+      kind: 'put',
+      previous: undefined,
+    });
+    expect(byKey.has('uploaded')).toBe(false);
+  });
+
+  it('reports the previous value right before a delete', async () => {
+    await db.put('notes', { id: 'gone', title: 'Going away' });
+
+    const sync = transport([{ id: 'gone.json', syncKey: 'gone.json' }]);
+    const events: SyncWriteEvent<NoteRecord>[] = [];
+
+    await syncStore<NoteRecord>(db, sync, 'notes', {
+      resolve: () => 'delete',
+      onBeforeWrite: (event) => {
+        events.push(event as SyncWriteEvent<NoteRecord>);
+      },
+    });
+
+    expect(events).toEqual([
+      {
+        key: 'gone',
+        kind: 'delete',
+        previous: { id: 'gone', title: 'Going away' },
+      },
+    ]);
+  });
+});
+
+describe('syncStore – onItemSettled', () => {
+  it('fires once per queue item with the outcome, surfacing the caught error on failure', async () => {
+    await db.put('notes', { id: 'upload-ok', title: 'Upload ok' });
+    await db.put('notes', { id: 'delete-ok', title: 'Delete ok' });
+
+    const sync = transport(
+      [
+        { id: 'delete-ok.json', syncKey: 'delete-ok.json' },
+        { id: 'download-fail.json', syncKey: 'download-fail.json' },
+      ],
+      { 'download-fail.json': undefined },
+    );
+
+    vi.mocked(sync.put).mockRejectedValueOnce(new Error('upload failed'));
+
+    const events: SyncItemSettledEvent[] = [];
+
+    await syncStore<NoteRecord>(db, sync, 'notes', {
+      resolve: () => 'delete',
+      onItemSettled: (event) => {
+        events.push(event);
+      },
+    });
+
+    const byKey = new Map(events.map((event) => [event.key, event]));
+
+    expect(byKey.get('upload-ok')).toMatchObject({
+      kind: 'upload',
+      status: 'rejected',
+    });
+
+    expect(
+      (byKey.get('upload-ok') as SyncItemSettledEvent).error,
+    ).toBeInstanceOf(Error);
+
+    expect(byKey.get('delete-ok')).toMatchObject({
+      kind: 'delete',
+      status: 'fulfilled',
+    });
+
+    expect(byKey.get('download-fail')).toMatchObject({
+      kind: 'download',
+      status: 'rejected',
+    });
+
+    expect(events).toHaveLength(3);
+  });
+
+  it('reports every item skipped after cancellation as rejected with an AbortError', async () => {
+    const ids = Array.from({ length: 8 }, (_, index) => `u${index}`);
+
+    for (const id of ids) {
+      await db.put('notes', { id, title: id });
+    }
+
+    const sync = transport();
+    const controller = new AbortController();
+    const events: SyncItemSettledEvent[] = [];
+
+    vi.mocked(sync.put).mockImplementation(async (_store, key) => {
+      controller.abort();
+
+      return { id: key, syncKey: key };
+    });
+
+    await syncStore<NoteRecord>(db, sync, 'notes', {
+      signal: controller.signal,
+      onItemSettled: (event) => {
+        events.push(event);
+      },
+    });
+
+    expect(events).toHaveLength(ids.length);
+
+    const aborted = events.filter(
+      (event) =>
+        event.status === 'rejected' &&
+        event.error instanceof DOMException &&
+        event.error.name === 'AbortError',
+    );
+
+    expect(aborted.length).toBeGreaterThan(0);
+  });
+
+  it('logs observer errors without relabeling outcomes or suppressing later events', async () => {
+    await db.put('notes', { id: 'a', title: 'A' });
+    await db.put('notes', { id: 'b', title: 'B' });
+
+    const sync = transport();
+    const events: SyncItemSettledEvent[] = [];
+
+    await syncStore<NoteRecord>(db, sync, 'notes', {
+      onItemSettled: (event) => {
+        events.push(event);
+
+        if (event.key === 'a') {
+          throw new Error('observer failed');
+        }
+      },
+    });
+
+    expect(events).toHaveLength(2);
+    expect(events.every(({ status }) => status === 'fulfilled')).toBe(true);
+    expect(console.error).toHaveBeenCalledWith(
+      expect.objectContaining({ message: 'observer failed' }),
+    );
   });
 });
 
