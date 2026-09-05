@@ -134,11 +134,12 @@ export interface SyncWriteEvent<T extends SyncRecord = SyncRecord> {
 }
 
 /**
- * Reported once a single queue item (a download, upload, or delete) has
- * settled, success or failure. `error` is set only when `status` is
+ * Reported once for every planned queue item (a download, upload, or delete)
+ * after it settles. Items that cancellation prevents from starting are
+ * rejected with an `AbortError`. `error` is set only when `status` is
  * `'rejected'`. Failures are still logged via `console.error` regardless of
- * whether a caller supplies this hook — it's an additional, structured way
- * to observe the same failures, not a replacement for the default logging.
+ * whether a caller supplies this hook. Errors thrown by the hook itself are
+ * logged separately and do not change item outcomes or suppress later events.
  */
 export interface SyncItemSettledEvent {
   key: string;
@@ -204,7 +205,7 @@ export interface SyncOptions<T extends SyncRecord = SyncRecord> {
   /** Fires immediately before each local IDB write this run performs. */
   onBeforeWrite?: (event: SyncWriteEvent<T>) => void;
 
-  /** Fires once each queue item (download/upload/delete) settles. */
+  /** Fires once for each planned queue item, including cancelled items. */
   onItemSettled?: (event: SyncItemSettledEvent) => void;
 }
 
@@ -578,14 +579,6 @@ export async function syncStore<T extends SyncRecord>(
 
       case 'delete':
         deleteQueue.push(cursor.primaryKey as string);
-
-        options?.onBeforeWrite?.({
-          key: cursor.primaryKey as string,
-          kind: 'delete',
-          previous: localValue,
-        });
-
-        cursor.delete();
         break;
 
       case 'ignore':
@@ -613,79 +606,97 @@ export async function syncStore<T extends SyncRecord>(
     ...deleteQueue.map((uuid): QueueItem => ({ kind: 'delete', uuid })),
   ];
 
-  await runQueue(
+  const results = await runQueue(
     queueItems,
     QUEUE_CONCURRENCY,
     async (item) => {
-      try {
-        if (item.kind === 'download') {
-          const value = await transport.get<T>(storeName, keyToSyncKey(item.uuid));
+      if (item.kind === 'download') {
+        const value = await transport.get<T>(
+          storeName,
+          keyToSyncKey(item.uuid),
+        );
 
-          if (value === undefined) {
-            throw new Error(`Fetched value for ${item.uuid} was undefined.`);
-          }
+        if (value === undefined) {
+          throw new Error(`Fetched value for ${item.uuid} was undefined.`);
+        }
 
-          // Skip soft-deleted records
-          if (softDeleteField && value[softDeleteField]) {
-            options?.onItemSettled?.({ key: item.uuid, kind: 'download', status: 'fulfilled' });
-
-            return;
-          }
-
-          const local =
-            blobFields && blobTransport
-              ? await downloadBlobFields(blobTransport, storeName, value, blobFields)
-              : value;
-
-          options?.onBeforeWrite?.({
-            key: item.uuid,
-            kind: 'put',
-            previous: previousByKey.get(item.uuid),
-          });
-
-          await db.put(storeName, local);
-          options?.onItemSettled?.({ key: item.uuid, kind: 'download', status: 'fulfilled' });
-
+        // Skip soft-deleted records
+        if (softDeleteField && value[softDeleteField]) {
           return;
         }
 
-        if (item.kind === 'upload') {
-          const value = await db.get(storeName, item.uuid);
+        const local =
+          blobFields && blobTransport
+            ? await downloadBlobFields(
+                blobTransport,
+                storeName,
+                value,
+                blobFields,
+              )
+            : value;
 
-          if (value === undefined) {
-            throw new Error(`Local value for ${item.uuid} was undefined.`);
-          }
-
-          const remote =
-            blobFields && blobTransport
-              ? await uploadBlobFields(
-                  blobTransport,
-                  storeName,
-                  value as T,
-                  blobFields,
-                  uploadedBlobKeys,
-                )
-              : value;
-
-          await transport.put(storeName, keyToSyncKey(item.uuid), remote);
-          options?.onItemSettled?.({ key: item.uuid, kind: 'upload', status: 'fulfilled' });
-
-          return;
-        }
-
-        await transport.delete(storeName, keyToSyncKey(item.uuid), true);
-        options?.onItemSettled?.({ key: item.uuid, kind: 'delete', status: 'fulfilled' });
-      } catch (error) {
-        console.error(error);
-
-        options?.onItemSettled?.({
+        options?.onBeforeWrite?.({
           key: item.uuid,
-          kind: item.kind,
-          status: 'rejected',
-          error,
+          kind: 'put',
+          previous: previousByKey.get(item.uuid),
         });
+
+        await db.put(storeName, local);
+
+        return;
       }
+
+      if (item.kind === 'upload') {
+        const value = await db.get(storeName, item.uuid);
+
+        if (value === undefined) {
+          throw new Error(`Local value for ${item.uuid} was undefined.`);
+        }
+
+        const remote =
+          blobFields && blobTransport
+            ? await uploadBlobFields(
+                blobTransport,
+                storeName,
+                value as T,
+                blobFields,
+                uploadedBlobKeys,
+              )
+            : value;
+
+        await transport.put(storeName, keyToSyncKey(item.uuid), remote);
+
+        return;
+      }
+
+      options?.onBeforeWrite?.({
+        key: item.uuid,
+        kind: 'delete',
+        previous: previousByKey.get(item.uuid),
+      });
+
+      await db.delete(storeName, item.uuid);
+      await transport.delete(storeName, keyToSyncKey(item.uuid), true);
     },
     signal,
   );
+
+  for (const [index, result] of results.entries()) {
+    const item = queueItems[index] as QueueItem;
+
+    if (result.status === 'rejected') {
+      console.error(result.reason);
+    }
+
+    try {
+      options?.onItemSettled?.({
+        key: item.uuid,
+        kind: item.kind,
+        status: result.status,
+        ...(result.status === 'rejected' && { error: result.reason }),
+      });
+    } catch (error) {
+      console.error(error);
+    }
+  }
 }

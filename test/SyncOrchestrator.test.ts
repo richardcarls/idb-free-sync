@@ -335,7 +335,7 @@ describe('syncStore – signal', () => {
     expect(await db.get('notes', 'a')).toMatchObject({ title: 'A' });
   });
 
-  it('stops issuing further local deletes once aborted mid cursor-scan', async () => {
+  it('does not start queued local deletes once aborted mid cursor-scan', async () => {
     for (const id of ['a', 'b', 'c']) {
       await db.put('notes', { id, title: id });
     }
@@ -362,7 +362,7 @@ describe('syncStore – signal', () => {
     });
 
     expect(resolveCalls).toBe(1);
-    expect(await db.get('notes', 'a')).toBeUndefined();
+    expect(await db.get('notes', 'a')).toMatchObject({ title: 'a' });
     expect(await db.get('notes', 'b')).toMatchObject({ title: 'b' });
     expect(await db.get('notes', 'c')).toMatchObject({ title: 'c' });
   });
@@ -415,7 +415,8 @@ describe('syncStore – onBeforeWrite', () => {
     const events: SyncWriteEvent<NoteRecord>[] = [];
 
     await syncStore<NoteRecord>(db, sync, 'notes', {
-      resolve: (local) => (local.id === 'uploaded' ? 'keep-local' : 'keep-remote'),
+      resolve: (local) =>
+        local.id === 'uploaded' ? 'keep-local' : 'keep-remote',
       onBeforeWrite: (event) => {
         events.push(event as SyncWriteEvent<NoteRecord>);
       },
@@ -428,7 +429,10 @@ describe('syncStore – onBeforeWrite', () => {
       previous: { title: 'Local (stale)' },
     });
 
-    expect(byKey.get('new')).toMatchObject({ kind: 'put', previous: undefined });
+    expect(byKey.get('new')).toMatchObject({
+      kind: 'put',
+      previous: undefined,
+    });
     expect(byKey.has('uploaded')).toBe(false);
   });
 
@@ -446,7 +450,11 @@ describe('syncStore – onBeforeWrite', () => {
     });
 
     expect(events).toEqual([
-      { key: 'gone', kind: 'delete', previous: { id: 'gone', title: 'Going away' } },
+      {
+        key: 'gone',
+        kind: 'delete',
+        previous: { id: 'gone', title: 'Going away' },
+      },
     ]);
   });
 });
@@ -482,9 +490,14 @@ describe('syncStore – onItemSettled', () => {
       status: 'rejected',
     });
 
-    expect((byKey.get('upload-ok') as SyncItemSettledEvent).error).toBeInstanceOf(Error);
+    expect(
+      (byKey.get('upload-ok') as SyncItemSettledEvent).error,
+    ).toBeInstanceOf(Error);
 
-    expect(byKey.get('delete-ok')).toMatchObject({ kind: 'delete', status: 'fulfilled' });
+    expect(byKey.get('delete-ok')).toMatchObject({
+      kind: 'delete',
+      status: 'fulfilled',
+    });
 
     expect(byKey.get('download-fail')).toMatchObject({
       kind: 'download',
@@ -492,6 +505,66 @@ describe('syncStore – onItemSettled', () => {
     });
 
     expect(events).toHaveLength(3);
+  });
+
+  it('reports every item skipped after cancellation as rejected with an AbortError', async () => {
+    const ids = Array.from({ length: 8 }, (_, index) => `u${index}`);
+
+    for (const id of ids) {
+      await db.put('notes', { id, title: id });
+    }
+
+    const sync = transport();
+    const controller = new AbortController();
+    const events: SyncItemSettledEvent[] = [];
+
+    vi.mocked(sync.put).mockImplementation(async (_store, key) => {
+      controller.abort();
+
+      return { id: key, syncKey: key };
+    });
+
+    await syncStore<NoteRecord>(db, sync, 'notes', {
+      signal: controller.signal,
+      onItemSettled: (event) => {
+        events.push(event);
+      },
+    });
+
+    expect(events).toHaveLength(ids.length);
+
+    const aborted = events.filter(
+      (event) =>
+        event.status === 'rejected' &&
+        event.error instanceof DOMException &&
+        event.error.name === 'AbortError',
+    );
+
+    expect(aborted.length).toBeGreaterThan(0);
+  });
+
+  it('logs observer errors without relabeling outcomes or suppressing later events', async () => {
+    await db.put('notes', { id: 'a', title: 'A' });
+    await db.put('notes', { id: 'b', title: 'B' });
+
+    const sync = transport();
+    const events: SyncItemSettledEvent[] = [];
+
+    await syncStore<NoteRecord>(db, sync, 'notes', {
+      onItemSettled: (event) => {
+        events.push(event);
+
+        if (event.key === 'a') {
+          throw new Error('observer failed');
+        }
+      },
+    });
+
+    expect(events).toHaveLength(2);
+    expect(events.every(({ status }) => status === 'fulfilled')).toBe(true);
+    expect(console.error).toHaveBeenCalledWith(
+      expect.objectContaining({ message: 'observer failed' }),
+    );
   });
 });
 

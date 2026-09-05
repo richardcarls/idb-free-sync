@@ -16,15 +16,11 @@ function deferred<T = void>(): {
 
 describe('runQueue', () => {
   it('runs every item and returns one settled result per item, in order', async () => {
-    const results = await runQueue(
-      [1, 2, 3],
-      2,
-      async (item) => {
-        if (item === 2) {
-          throw new Error('boom');
-        }
-      },
-    );
+    const results = await runQueue([1, 2, 3], 2, async (item) => {
+      if (item === 2) {
+        throw new Error('boom');
+      }
+    });
 
     expect(results).toHaveLength(3);
     expect(results[0]).toEqual({ status: 'fulfilled', value: undefined });
