@@ -134,7 +134,8 @@ export interface SyncWriteEvent<T extends SyncRecord = SyncRecord> {
 }
 
 /**
- * Reported once for every planned queue item (a download, upload, or delete)
+ * Reported once for every planned queue item (a download, upload, delete, or
+ * blob reconciliation)
  * after it settles. Items that cancellation prevents from starting are
  * rejected with an `AbortError`. `error` is set only when `status` is
  * `'rejected'`. Failures are still logged via `console.error` regardless of
@@ -143,9 +144,49 @@ export interface SyncWriteEvent<T extends SyncRecord = SyncRecord> {
  */
 export interface SyncItemSettledEvent {
   key: string;
-  kind: 'download' | 'upload' | 'delete';
+  kind: 'download' | 'upload' | 'delete' | 'reconcile';
   status: 'fulfilled' | 'rejected';
   error?: unknown;
+}
+
+/** Identifies a record whose blob reference cannot be satisfied locally or remotely. */
+export class BlobIntegrityError extends Error {
+  /** Object store containing the record. */
+  readonly storeName: string;
+
+  /** Primary key of the affected record. */
+  readonly recordKey: string;
+
+  /** Referenced blob key missing from both stores. */
+  readonly blobKey: string;
+
+  /** Sync operation that discovered the missing blob. */
+  readonly operation: 'download' | 'upload' | 'reconcile';
+
+  /**
+   * Creates a structured missing-blob error.
+   *
+   * @param storeName - object store containing the record
+   * @param recordKey - primary key of the affected record
+   * @param blobKey - referenced blob key missing from both stores
+   * @param operation - sync operation that discovered the missing blob
+   */
+  constructor(
+    storeName: string,
+    recordKey: string,
+    blobKey: string,
+    operation: BlobIntegrityError['operation'],
+  ) {
+    super(
+      `Blob ${blobKey} referenced by ${storeName}/${recordKey} is unavailable locally and remotely.`,
+    );
+
+    this.name = 'BlobIntegrityError';
+    this.storeName = storeName;
+    this.recordKey = recordKey;
+    this.blobKey = blobKey;
+    this.operation = operation;
+  }
 }
 
 function isArrayBlobFieldConfig(
@@ -278,28 +319,72 @@ function buildResolver<T extends SyncRecord>(
   };
 }
 
-/**
- * Uploads a single blob to the transport unless a blob with the same key was
- * already pushed (or listed remotely) this sync cycle. `uploadedKeys` is
- * mutated to record the push.
- */
-async function uploadBlob(
+type BlobOperation = BlobIntegrityError['operation'];
+
+interface BlobTransferState {
+  remoteKeys: Set<string>;
+  inFlight: WeakMap<BlobStore, Map<string, Promise<void>>>;
+}
+
+async function reconcileBlob(
   transport: BlobSyncTransport,
   storeName: string,
+  recordKey: string,
   blobStore: BlobStore,
   blobKey: string,
   contentType: string | undefined,
-  uploadedKeys: Set<string>,
+  operation: BlobOperation,
+  state: BlobTransferState,
 ): Promise<void> {
-  if (uploadedKeys.has(blobKey)) {
+  let storeTransfers = state.inFlight.get(blobStore);
+
+  if (!storeTransfers) {
+    storeTransfers = new Map();
+    state.inFlight.set(blobStore, storeTransfers);
+  }
+
+  const pending = storeTransfers.get(blobKey);
+
+  if (pending) {
+    await pending;
+
     return;
   }
 
-  const blob = await blobStore.get(blobKey);
+  const transfer = (async () => {
+    const localBlob = await blobStore.get(blobKey);
+    const remoteExists = state.remoteKeys.has(blobKey);
 
-  if (blob) {
-    await transport.putBlob(storeName, blobKey, blob, contentType);
-    uploadedKeys.add(blobKey);
+    if (localBlob) {
+      if (!remoteExists) {
+        await transport.putBlob(storeName, blobKey, localBlob, contentType);
+        state.remoteKeys.add(blobKey);
+      }
+
+      return;
+    }
+
+    if (remoteExists) {
+      const remoteBlob = await transport.getBlob(storeName, blobKey);
+
+      if (remoteBlob) {
+        await blobStore.put(blobKey, remoteBlob);
+
+        return;
+      }
+
+      state.remoteKeys.delete(blobKey);
+    }
+
+    throw new BlobIntegrityError(storeName, recordKey, blobKey, operation);
+  })();
+
+  storeTransfers.set(blobKey, transfer);
+
+  try {
+    await transfer;
+  } finally {
+    storeTransfers.delete(blobKey);
   }
 }
 
@@ -315,9 +400,10 @@ async function uploadBlob(
 async function uploadBlobFields<T extends SyncRecord>(
   transport: BlobSyncTransport,
   storeName: string,
+  recordKey: string,
   record: T,
   blobFields: NonNullable<SyncOptions<T>['blobFields']>,
-  uploadedKeys: Set<string>,
+  state: BlobTransferState,
 ): Promise<T> {
   const out = { ...record } as T;
 
@@ -339,13 +425,15 @@ async function uploadBlobFields<T extends SyncRecord>(
           continue;
         }
 
-        await uploadBlob(
+        await reconcileBlob(
           transport,
           storeName,
+          recordKey,
           config.blobStore,
           blobKey,
           config.itemContentType?.(item),
-          uploadedKeys,
+          'upload',
+          state,
         );
       }
 
@@ -360,40 +448,21 @@ async function uploadBlobFields<T extends SyncRecord>(
       ? config.keyFromValue(rawValue)
       : rawValue;
 
-    await uploadBlob(
+    await reconcileBlob(
       transport,
       storeName,
+      recordKey,
       config.blobStore,
       blobKey,
       config.contentType,
-      uploadedKeys,
+      'upload',
+      state,
     );
 
     (out as Record<string, unknown>)[field] = blobKey;
   }
 
   return out;
-}
-
-/**
- * Downloads a single blob from the transport into the local blobStore unless
- * it is already present locally.
- */
-async function downloadBlob(
-  transport: BlobSyncTransport,
-  storeName: string,
-  blobStore: BlobStore,
-  blobKey: string,
-): Promise<void> {
-  if (await blobStore.has(blobKey)) {
-    return;
-  }
-
-  const blob = await transport.getBlob(storeName, blobKey);
-
-  if (blob) {
-    await blobStore.put(blobKey, blob);
-  }
 }
 
 /**
@@ -405,8 +474,10 @@ async function downloadBlob(
 async function downloadBlobFields<T extends SyncRecord>(
   transport: BlobSyncTransport,
   storeName: string,
+  recordKey: string,
   record: T,
   blobFields: NonNullable<SyncOptions<T>['blobFields']>,
+  state: BlobTransferState,
 ): Promise<T> {
   const out = { ...record } as T;
 
@@ -425,7 +496,16 @@ async function downloadBlobFields<T extends SyncRecord>(
         const blobKey = config.itemKey(item);
 
         if (blobKey) {
-          await downloadBlob(transport, storeName, config.blobStore, blobKey);
+          await reconcileBlob(
+            transport,
+            storeName,
+            recordKey,
+            config.blobStore,
+            blobKey,
+            config.itemContentType?.(item),
+            'download',
+            state,
+          );
         }
       }
 
@@ -436,7 +516,16 @@ async function downloadBlobFields<T extends SyncRecord>(
       continue;
     }
 
-    await downloadBlob(transport, storeName, config.blobStore, rawValue);
+    await reconcileBlob(
+      transport,
+      storeName,
+      recordKey,
+      config.blobStore,
+      rawValue,
+      config.contentType,
+      'download',
+      state,
+    );
 
     const localValue = config.valueFromKey
       ? config.valueFromKey(rawValue)
@@ -448,11 +537,50 @@ async function downloadBlobFields<T extends SyncRecord>(
   return out;
 }
 
+async function reconcileBlobFields<T extends SyncRecord>(
+  transport: BlobSyncTransport,
+  storeName: string,
+  recordKey: string,
+  record: T,
+  blobFields: NonNullable<SyncOptions<T>['blobFields']>,
+  state: BlobTransferState,
+): Promise<void> {
+  await uploadBlobFields(
+    transport,
+    storeName,
+    recordKey,
+    record,
+    blobFields,
+    state,
+  );
+}
+
+function hasBlobReferences<T extends SyncRecord>(
+  record: T,
+  blobFields: NonNullable<SyncOptions<T>['blobFields']>,
+): boolean {
+  return (Object.entries(blobFields) as [string, AnyBlobFieldConfig][]).some(
+    ([field, config]) => {
+      const rawValue = record[field];
+
+      if (isArrayBlobFieldConfig(config)) {
+        return (
+          Array.isArray(rawValue) &&
+          rawValue.some((item) => Boolean(config.itemKey(item)))
+        );
+      }
+
+      return typeof rawValue === 'string' && rawValue.length > 0;
+    },
+  );
+}
+
 /** One unit of work in `syncStore`'s combined write queue. */
 type QueueItem =
   | { kind: 'download'; uuid: string }
   | { kind: 'upload'; uuid: string }
-  | { kind: 'delete'; uuid: string };
+  | { kind: 'delete'; uuid: string }
+  | { kind: 'reconcile'; uuid: string };
 
 /** Local writes/uploads/deletes in flight at once during `syncStore`. */
 const QUEUE_CONCURRENCY = 6;
@@ -469,10 +597,11 @@ const QUEUE_CONCURRENCY = 6;
  * bounded-concurrency pool (`QUEUE_CONCURRENCY` at a time).
  *
  * When `options.blobFields` is configured, binary blobs referenced by those
- * fields are synced alongside their records. Remote blobs already present are
- * skipped on upload; local blobs already present are skipped on download.
- * The transport must implement {@link BlobSyncTransport}; an error is thrown
- * at startup if it does not.
+ * fields are synced alongside their records. Equal records reconcile a blob
+ * missing from either side, while a reference missing from both sides rejects
+ * only that record's queue item with {@link BlobIntegrityError}. The transport
+ * must implement {@link BlobSyncTransport}; an error is thrown at startup if
+ * it does not.
  *
  * Individual queue failures are logged and do not cause `syncStore` to
  * reject — pass `options.onItemSettled` for a structured, per-item view of
@@ -481,10 +610,10 @@ const QUEUE_CONCURRENCY = 6;
  * `options.onBeforeWrite` to observe each local write before it happens,
  * e.g. to build an undo log for reverting a cancelled run.
  *
- * @param db        An open `idb` database instance.
- * @param transport Storage provider implementing {@link SyncTransport}.
- * @param storeName Name of the object store to sync.
- * @param options   Optional conflict resolution and field configuration.
+ * @param db - an open `idb` database instance
+ * @param transport - storage provider implementing {@link SyncTransport}
+ * @param storeName - name of the object store to sync
+ * @param options - optional conflict resolution and field configuration
  */
 export async function syncStore<T extends SyncRecord>(
   // `IDBPDatabase` (implicitly `IDBPDatabase<unknown>`) rejects a
@@ -494,6 +623,7 @@ export async function syncStore<T extends SyncRecord>(
   // stores by name. `any` is the standard workaround for a schema-agnostic
   // helper like this one; it doesn't weaken anything callers rely on since
   // no schema-specific type ever flows out of `syncStore` itself.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- schema-agnostic store access requires idb's open database type
   db: IDBPDatabase<any>,
   transport: SyncTransport,
   storeName: string,
@@ -522,17 +652,20 @@ export async function syncStore<T extends SyncRecord>(
   // 1. List remote items (and remote blobs if needed)
   const remoteItems = await transport.list(storeName);
 
-  // Track blob keys already uploaded this cycle to avoid redundant pushes
-  const uploadedBlobKeys = new Set<string>(
-    blobTransport
-      ? (await blobTransport.listBlobs(storeName)).map((b) => b.syncKey)
-      : [],
-  );
+  const blobTransferState: BlobTransferState = {
+    remoteKeys: new Set<string>(
+      blobTransport
+        ? (await blobTransport.listBlobs(storeName)).map((b) => b.syncKey)
+        : [],
+    ),
+    inFlight: new WeakMap(),
+  };
 
   // 2. Iterate local records, resolve conflicts
   const fromRemoteQueue: string[] = [];
   const toRemoteQueue: string[] = [];
   const deleteQueue: string[] = [];
+  const reconcileQueue: string[] = [];
   const matchedRemoteKeys = new Set<string>();
   // Every locally-scanned record's value, keyed by its local key — reused
   // below as the `previous` value `onBeforeWrite` reports for downloads
@@ -582,6 +715,10 @@ export async function syncStore<T extends SyncRecord>(
         break;
 
       case 'ignore':
+        if (blobFields && hasBlobReferences(localValue, blobFields)) {
+          reconcileQueue.push(cursor.primaryKey as string);
+        }
+
         break;
     }
   }
@@ -604,6 +741,7 @@ export async function syncStore<T extends SyncRecord>(
     ...fromRemoteQueue.map((uuid): QueueItem => ({ kind: 'download', uuid })),
     ...toRemoteQueue.map((uuid): QueueItem => ({ kind: 'upload', uuid })),
     ...deleteQueue.map((uuid): QueueItem => ({ kind: 'delete', uuid })),
+    ...reconcileQueue.map((uuid): QueueItem => ({ kind: 'reconcile', uuid })),
   ];
 
   const results = await runQueue(
@@ -630,8 +768,10 @@ export async function syncStore<T extends SyncRecord>(
             ? await downloadBlobFields(
                 blobTransport,
                 storeName,
+                item.uuid,
                 value,
                 blobFields,
+                blobTransferState,
               )
             : value;
 
@@ -658,13 +798,31 @@ export async function syncStore<T extends SyncRecord>(
             ? await uploadBlobFields(
                 blobTransport,
                 storeName,
+                item.uuid,
                 value as T,
                 blobFields,
-                uploadedBlobKeys,
+                blobTransferState,
               )
             : value;
 
         await transport.put(storeName, keyToSyncKey(item.uuid), remote);
+
+        return;
+      }
+
+      if (item.kind === 'reconcile') {
+        const value = previousByKey.get(item.uuid);
+
+        if (value && blobFields && blobTransport) {
+          await reconcileBlobFields(
+            blobTransport,
+            storeName,
+            item.uuid,
+            value,
+            blobFields,
+            blobTransferState,
+          );
+        }
 
         return;
       }

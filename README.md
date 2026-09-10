@@ -278,6 +278,13 @@ await syncStore<Recipe>(db, transport, 'recipes', {
 });
 ```
 
+Blob references are integrity-checked before their associated record operation
+completes. When equal records reference a blob available on only one side,
+`syncStore` repairs the missing copy without rewriting either record. When the
+blob is absent locally and remotely, that record's queue item is rejected with
+`BlobIntegrityError` and reported through `onItemSettled`; other records continue
+syncing normally.
+
 **Upload path:** For each record being uploaded, any blob referenced by a
 `blobFields` field is pushed to the transport (skipped if already present
 remotely). The record's field value is replaced with the raw key in remote JSON.
