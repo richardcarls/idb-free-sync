@@ -120,7 +120,7 @@ describe('DropboxTransport', () => {
 
     expect(client.filesUpload).toHaveBeenCalledWith(
       expect.objectContaining({
-        path: '/Apps/RecipeTome/notes/a.json',
+        path: '/notes/a.json',
         mode: { '.tag': 'overwrite' },
         contents: expect.any(Blob),
       }),
@@ -147,11 +147,11 @@ describe('DropboxTransport', () => {
     );
 
     expect(client.filesDeleteV2).toHaveBeenCalledWith({
-      path: '/Apps/RecipeTome/notes/a.json',
+      path: '/notes/a.json',
     });
 
     expect(client.filesDeleteV2).toHaveBeenCalledWith({
-      path: '/Apps/RecipeTome/notes',
+      path: '/notes',
     });
 
     expect(await transport.count('notes')).toBe(1);
@@ -169,7 +169,7 @@ describe('DropboxTransport', () => {
 
     expect(client.filesUpload).toHaveBeenCalledWith(
       expect.objectContaining({
-        path: '/Apps/RecipeTome/notes-blobs/img.jpg',
+        path: '/notes-blobs/img.jpg',
         mode: { '.tag': 'overwrite' },
         contents: blob,
       }),
@@ -218,7 +218,7 @@ describe('DropboxTransport', () => {
     ).resolves.toBeUndefined();
 
     expect(client.filesDeleteV2).toHaveBeenCalledWith({
-      path: '/Apps/RecipeTome/notes-blobs/img.jpg',
+      path: '/notes-blobs/img.jpg',
     });
 
     client.filesDeleteV2.mockRejectedValueOnce(new Error('missing'));
