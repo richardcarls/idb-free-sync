@@ -2,8 +2,6 @@
 '@rcarls/idb-free-sync': minor
 ---
 
-<!-- markdownlint-disable MD041 -->
-
 Add `signal`, `onBeforeWrite`, and `onItemSettled` to `SyncOptions`.
 `signal` cancels a run in progress: already-started queue items still settle,
 nothing further starts, and skipped items report a rejected `AbortError`.
