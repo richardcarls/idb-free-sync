@@ -1,7 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { DropboxTransport } from '../src/DropboxTransport';
-import { expectSyncFileInfo } from './support/transportContract';
+import {
+  expectSyncFileInfo,
+  expectTransportIdentity,
+} from './support/transportContract';
 
 const { client } = vi.hoisted(() => ({
   client: {
@@ -13,7 +16,7 @@ const { client } = vi.hoisted(() => ({
 }));
 
 vi.mock('../src/internal/dropboxAdapter', () => ({
-  createDropboxClient: () => client,
+  createDropboxClient: vi.fn(() => client),
 }));
 
 const file = {
@@ -24,17 +27,52 @@ const file = {
   size: 12,
 };
 
+function tokenProvider() {
+  return Promise.resolve('token');
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   client.filesDeleteV2.mockResolvedValue({});
 });
 
 describe('DropboxTransport', () => {
+  it('reports its provider identity and scopes', () => {
+    expectTransportIdentity(new DropboxTransport(tokenProvider), 'dropbox');
+  });
+
+  it('calls the token provider before each API operation', async () => {
+    client.filesListFolder.mockResolvedValue({ result: { entries: [] } });
+
+    let calls = 0;
+    const transport = new DropboxTransport(() => {
+      calls += 1;
+
+      return Promise.resolve('token');
+    });
+
+    await transport.list('notes');
+    await transport.list('notes');
+
+    expect(calls).toBe(2);
+  });
+
+  it('propagates token-provider failures from optional reads and deletes', async () => {
+    const error = new Error('token refresh failed');
+    const transport = new DropboxTransport(() => Promise.reject(error));
+
+    await expect(transport.get('notes', 'a.json')).rejects.toBe(error);
+    await expect(transport.getBlob('notes', 'img.jpg')).rejects.toBe(error);
+    await expect(transport.listBlobs('notes')).rejects.toBe(error);
+    await expect(transport.deleteBlob('notes', 'img.jpg')).rejects.toBe(error);
+  });
+
   it('lists only files, handles a missing folder, and rethrows other errors', async () => {
     client.filesListFolder.mockResolvedValueOnce({
       result: { entries: [file, { '.tag': 'folder', name: 'folder' }] },
     });
-    const transport = new DropboxTransport();
+
+    const transport = new DropboxTransport(tokenProvider);
 
     expect(await transport.list('notes')).toEqual([
       expect.objectContaining({ id: 'id:a', syncKey: 'a.json', size: 12 }),
@@ -44,6 +82,7 @@ describe('DropboxTransport', () => {
     expect(await transport.list('missing')).toEqual([]);
 
     const networkError = new Error('network failure');
+
     client.filesListFolder.mockRejectedValueOnce(networkError);
     await expect(transport.list('notes')).rejects.toBe(networkError);
   });
@@ -52,7 +91,8 @@ describe('DropboxTransport', () => {
     client.filesDownload.mockResolvedValueOnce({
       result: { ...file, fileBlob: new Blob(['{"id":"a"}']) },
     });
-    const transport = new DropboxTransport();
+
+    const transport = new DropboxTransport(tokenProvider);
 
     expect(await transport.get('notes', 'a.json')).toEqual({ id: 'a' });
 
@@ -67,12 +107,17 @@ describe('DropboxTransport', () => {
   it('uploads JSON and maps metadata', async () => {
     client.filesUpload.mockResolvedValue({ result: file });
 
-    const result = await new DropboxTransport().put('notes', 'a.json', {
-      id: 'a',
-    });
+    const result = await new DropboxTransport(tokenProvider).put(
+      'notes',
+      'a.json',
+      {
+        id: 'a',
+      },
+    );
 
     expect(result).toMatchObject({ id: 'id:a', syncKey: 'a.json', size: 12 });
     expectSyncFileInfo(result, 'a.json');
+
     expect(client.filesUpload).toHaveBeenCalledWith(
       expect.objectContaining({
         path: '/Apps/RecipeTome/notes/a.json',
@@ -86,9 +131,11 @@ describe('DropboxTransport', () => {
     client.filesDownload.mockResolvedValue({
       result: { ...file, fileBlob: new Blob(['{"id":"a"}']) },
     });
+
     client.filesUpload.mockResolvedValue({ result: file });
     client.filesListFolder.mockResolvedValue({ result: { entries: [file] } });
-    const transport = new DropboxTransport();
+
+    const transport = new DropboxTransport(tokenProvider);
 
     await transport.delete('notes', 'a.json', true);
     await transport.delete('notes', 'a.json');
@@ -98,19 +145,24 @@ describe('DropboxTransport', () => {
     expect(client.filesUpload).toHaveBeenCalledWith(
       expect.objectContaining({ contents: expect.any(Blob) }),
     );
+
     expect(client.filesDeleteV2).toHaveBeenCalledWith({
       path: '/Apps/RecipeTome/notes/a.json',
     });
+
     expect(client.filesDeleteV2).toHaveBeenCalledWith({
       path: '/Apps/RecipeTome/notes',
     });
+
     expect(await transport.count('notes')).toBe(1);
   });
 
   it('putBlob uploads to the blobs folder and maps metadata', async () => {
     const blobFile = { ...file, name: 'img.jpg' };
+
     client.filesUpload.mockResolvedValue({ result: blobFile });
-    const transport = new DropboxTransport();
+
+    const transport = new DropboxTransport(tokenProvider);
     const blob = new Blob(['img'], { type: 'image/jpeg' });
 
     const result = await transport.putBlob('notes', 'img.jpg', blob);
@@ -122,6 +174,7 @@ describe('DropboxTransport', () => {
         contents: blob,
       }),
     );
+
     expect(result).toMatchObject({ syncKey: 'img.jpg' });
   });
 
@@ -132,7 +185,7 @@ describe('DropboxTransport', () => {
       result: { ...file, fileBlob: blob },
     });
 
-    const transport = new DropboxTransport();
+    const transport = new DropboxTransport(tokenProvider);
 
     expect(await transport.getBlob('notes', 'img.jpg')).toBe(blob);
 
@@ -147,9 +200,10 @@ describe('DropboxTransport', () => {
       result: { entries: [blobFile] },
     });
 
-    const transport = new DropboxTransport();
+    const transport = new DropboxTransport(tokenProvider);
 
     const result = await transport.listBlobs('notes');
+
     expect(result).toEqual([expect.objectContaining({ syncKey: 'img.jpg' })]);
 
     client.filesListFolder.mockRejectedValueOnce(new Error('missing'));
@@ -157,7 +211,7 @@ describe('DropboxTransport', () => {
   });
 
   it('deleteBlob deletes from the blobs folder and tolerates failures', async () => {
-    const transport = new DropboxTransport();
+    const transport = new DropboxTransport(tokenProvider);
 
     await expect(
       transport.deleteBlob('notes', 'img.jpg'),
@@ -168,6 +222,7 @@ describe('DropboxTransport', () => {
     });
 
     client.filesDeleteV2.mockRejectedValueOnce(new Error('missing'));
+
     await expect(
       transport.deleteBlob('notes', 'missing.jpg'),
     ).resolves.toBeUndefined();

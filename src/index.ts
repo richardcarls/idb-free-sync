@@ -4,6 +4,7 @@ export * from './BlobSyncTransport';
 export * from './BlobStore';
 export * from './NullTransport';
 export * from './OPFSTransport';
+export * from './TokenProvider';
 export * from './GoogleDriveTransport';
 export * from './OneDriveTransport';
 export * from './DropboxTransport';

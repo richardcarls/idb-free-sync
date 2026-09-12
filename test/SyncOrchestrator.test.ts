@@ -2,11 +2,14 @@ import { deleteDB, openDB, type IDBPDatabase } from 'idb';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
+  BlobIntegrityError,
   defaultResolve,
   syncStore,
   type ArrayBlobFieldConfig,
   type BlobFieldConfig,
+  type SyncItemSettledEvent,
   type SyncRecord,
+  type SyncWriteEvent,
 } from '../src/SyncOrchestrator';
 import type { BlobSyncTransport } from '../src/BlobSyncTransport';
 import type { BlobStore } from '../src/BlobStore';
@@ -314,6 +317,258 @@ describe('syncStore', () => {
   });
 });
 
+describe('syncStore – signal', () => {
+  it('skips all work when the signal is already aborted', async () => {
+    await db.put('notes', { id: 'a', title: 'A' });
+
+    const sync = transport([{ id: 'a.json', syncKey: 'a.json' }], {
+      'a.json': { id: 'a', title: 'Remote A' },
+    });
+    const controller = new AbortController();
+
+    controller.abort();
+
+    await syncStore<NoteRecord>(db, sync, 'notes', {
+      signal: controller.signal,
+    });
+
+    expect(sync.list).not.toHaveBeenCalled();
+    expect(await db.get('notes', 'a')).toMatchObject({ title: 'A' });
+  });
+
+  it('does not start queued local deletes once aborted mid cursor-scan', async () => {
+    for (const id of ['a', 'b', 'c']) {
+      await db.put('notes', { id, title: id });
+    }
+
+    const files = ['a', 'b', 'c'].map((id) => ({
+      id: `${id}.json`,
+      syncKey: `${id}.json`,
+    }));
+    const sync = transport(files);
+    const controller = new AbortController();
+    let resolveCalls = 0;
+
+    await syncStore<NoteRecord>(db, sync, 'notes', {
+      signal: controller.signal,
+      resolve: () => {
+        resolveCalls += 1;
+
+        if (resolveCalls === 1) {
+          controller.abort();
+        }
+
+        return 'delete';
+      },
+    });
+
+    expect(resolveCalls).toBe(1);
+    expect(await db.get('notes', 'a')).toMatchObject({ title: 'a' });
+    expect(await db.get('notes', 'b')).toMatchObject({ title: 'b' });
+    expect(await db.get('notes', 'c')).toMatchObject({ title: 'c' });
+  });
+
+  it('lets already-started queue items settle but starts no new ones once aborted mid-queue', async () => {
+    const ids = Array.from({ length: 8 }, (_, i) => `u${i}`);
+
+    for (const id of ids) {
+      await db.put('notes', { id, title: id });
+    }
+
+    const sync = transport();
+    const controller = new AbortController();
+    let putCalls = 0;
+
+    vi.mocked(sync.put).mockImplementation(async (_store, key) => {
+      putCalls += 1;
+      controller.abort();
+
+      return { id: key, syncKey: key };
+    });
+
+    await syncStore<NoteRecord>(db, sync, 'notes', {
+      signal: controller.signal,
+    });
+
+    // Bounded concurrency means only the first wave of already-launched
+    // uploads can call `put` — aborting inside the very first call must
+    // still stop the remaining, not-yet-started uploads from ever running.
+    expect(putCalls).toBeGreaterThanOrEqual(1);
+    expect(putCalls).toBeLessThan(ids.length);
+  });
+});
+
+describe('syncStore – onBeforeWrite', () => {
+  it('reports the previous value for a keep-remote update, undefined for a new remote-only record, and never fires for uploads', async () => {
+    await db.put('notes', { id: 'updated', title: 'Local (stale)' });
+    await db.put('notes', { id: 'uploaded', title: 'Local only' });
+
+    const sync = transport(
+      [
+        { id: 'updated.json', syncKey: 'updated.json' },
+        { id: 'new.json', syncKey: 'new.json' },
+      ],
+      {
+        'updated.json': { id: 'updated', title: 'Remote (fresh)' },
+        'new.json': { id: 'new', title: 'Brand new' },
+      },
+    );
+    const events: SyncWriteEvent<NoteRecord>[] = [];
+
+    await syncStore<NoteRecord>(db, sync, 'notes', {
+      resolve: (local) =>
+        local.id === 'uploaded' ? 'keep-local' : 'keep-remote',
+      onBeforeWrite: (event) => {
+        events.push(event as SyncWriteEvent<NoteRecord>);
+      },
+    });
+
+    const byKey = new Map(events.map((event) => [event.key, event]));
+
+    expect(byKey.get('updated')).toMatchObject({
+      kind: 'put',
+      previous: { title: 'Local (stale)' },
+    });
+
+    expect(byKey.get('new')).toMatchObject({
+      kind: 'put',
+      previous: undefined,
+    });
+    expect(byKey.has('uploaded')).toBe(false);
+  });
+
+  it('reports the previous value right before a delete', async () => {
+    await db.put('notes', { id: 'gone', title: 'Going away' });
+
+    const sync = transport([{ id: 'gone.json', syncKey: 'gone.json' }]);
+    const events: SyncWriteEvent<NoteRecord>[] = [];
+
+    await syncStore<NoteRecord>(db, sync, 'notes', {
+      resolve: () => 'delete',
+      onBeforeWrite: (event) => {
+        events.push(event as SyncWriteEvent<NoteRecord>);
+      },
+    });
+
+    expect(events).toEqual([
+      {
+        key: 'gone',
+        kind: 'delete',
+        previous: { id: 'gone', title: 'Going away' },
+      },
+    ]);
+  });
+});
+
+describe('syncStore – onItemSettled', () => {
+  it('fires once per queue item with the outcome, surfacing the caught error on failure', async () => {
+    await db.put('notes', { id: 'upload-ok', title: 'Upload ok' });
+    await db.put('notes', { id: 'delete-ok', title: 'Delete ok' });
+
+    const sync = transport(
+      [
+        { id: 'delete-ok.json', syncKey: 'delete-ok.json' },
+        { id: 'download-fail.json', syncKey: 'download-fail.json' },
+      ],
+      { 'download-fail.json': undefined },
+    );
+
+    vi.mocked(sync.put).mockRejectedValueOnce(new Error('upload failed'));
+
+    const events: SyncItemSettledEvent[] = [];
+
+    await syncStore<NoteRecord>(db, sync, 'notes', {
+      resolve: () => 'delete',
+      onItemSettled: (event) => {
+        events.push(event);
+      },
+    });
+
+    const byKey = new Map(events.map((event) => [event.key, event]));
+
+    expect(byKey.get('upload-ok')).toMatchObject({
+      kind: 'upload',
+      status: 'rejected',
+    });
+
+    expect(
+      (byKey.get('upload-ok') as SyncItemSettledEvent).error,
+    ).toBeInstanceOf(Error);
+
+    expect(byKey.get('delete-ok')).toMatchObject({
+      kind: 'delete',
+      status: 'fulfilled',
+    });
+
+    expect(byKey.get('download-fail')).toMatchObject({
+      kind: 'download',
+      status: 'rejected',
+    });
+
+    expect(events).toHaveLength(3);
+  });
+
+  it('reports every item skipped after cancellation as rejected with an AbortError', async () => {
+    const ids = Array.from({ length: 8 }, (_, index) => `u${index}`);
+
+    for (const id of ids) {
+      await db.put('notes', { id, title: id });
+    }
+
+    const sync = transport();
+    const controller = new AbortController();
+    const events: SyncItemSettledEvent[] = [];
+
+    vi.mocked(sync.put).mockImplementation(async (_store, key) => {
+      controller.abort();
+
+      return { id: key, syncKey: key };
+    });
+
+    await syncStore<NoteRecord>(db, sync, 'notes', {
+      signal: controller.signal,
+      onItemSettled: (event) => {
+        events.push(event);
+      },
+    });
+
+    expect(events).toHaveLength(ids.length);
+
+    const aborted = events.filter(
+      (event) =>
+        event.status === 'rejected' &&
+        event.error instanceof DOMException &&
+        event.error.name === 'AbortError',
+    );
+
+    expect(aborted.length).toBeGreaterThan(0);
+  });
+
+  it('logs observer errors without relabeling outcomes or suppressing later events', async () => {
+    await db.put('notes', { id: 'a', title: 'A' });
+    await db.put('notes', { id: 'b', title: 'B' });
+
+    const sync = transport();
+    const events: SyncItemSettledEvent[] = [];
+
+    await syncStore<NoteRecord>(db, sync, 'notes', {
+      onItemSettled: (event) => {
+        events.push(event);
+
+        if (event.key === 'a') {
+          throw new Error('observer failed');
+        }
+      },
+    });
+
+    expect(events).toHaveLength(2);
+    expect(events.every(({ status }) => status === 'fulfilled')).toBe(true);
+    expect(console.error).toHaveBeenCalledWith(
+      expect.objectContaining({ message: 'observer failed' }),
+    );
+  });
+});
+
 describe('syncStore – blobFields', () => {
   const imageBlob = new Blob(['img-data'], { type: 'image/jpeg' });
 
@@ -363,14 +618,11 @@ describe('syncStore – blobFields', () => {
     );
   });
 
-  it('skips putBlob when blob already exists remotely', async () => {
-    const localBlobs = new Map([['abc123', imageBlob]]);
-    const store = mockBlobStore(localBlobs);
-    const sync = blobTransport(
-      [],
-      {},
-      [{ id: 'abc123', syncKey: 'abc123' }], // remote blob already present
-    );
+  it('restores a missing local blob when it already exists remotely', async () => {
+    const store = mockBlobStore();
+    const sync = blobTransport([], {}, [{ id: 'abc123', syncKey: 'abc123' }], {
+      abc123: imageBlob,
+    });
 
     await db.put('notes', {
       id: 'r2',
@@ -383,6 +635,7 @@ describe('syncStore – blobFields', () => {
     });
 
     expect(sync.putBlob).not.toHaveBeenCalled();
+    expect(vi.mocked(store.put)).toHaveBeenCalledWith('abc123', imageBlob);
   });
 
   it('downloads the blob and rewrites field to local URL', async () => {
@@ -390,7 +643,7 @@ describe('syncStore – blobFields', () => {
     const sync = blobTransport(
       [{ id: 'r3.json', syncKey: 'r3.json' }],
       { 'r3.json': { id: 'r3', name: 'Soup', imageUrl: 'abc123' } },
-      [],
+      [{ id: 'abc123', syncKey: 'abc123' }],
       { abc123: imageBlob },
     );
 
@@ -435,10 +688,10 @@ describe('syncStore – blobFields', () => {
     expect(sync.putBlob).not.toHaveBeenCalled();
   });
 
-  it('skips putBlob when local blobStore has no blob for the key', async () => {
-    // imageUrl is set but the blob is missing from OPFS
-    const store = mockBlobStore(); // empty store — no blob
+  it('rejects an upload item when its blob is missing on both sides', async () => {
+    const store = mockBlobStore();
     const sync = blobTransport();
+    const settled: SyncItemSettledEvent[] = [];
 
     await db.put('notes', {
       id: 'r6',
@@ -448,36 +701,43 @@ describe('syncStore – blobFields', () => {
 
     await syncStore<RecipeRecord>(db, sync, 'notes', {
       blobFields: { imageUrl: blobFieldConfig(store) },
+      onItemSettled: (event) => settled.push(event),
     });
 
     expect(sync.putBlob).not.toHaveBeenCalled();
-
-    // Field is still replaced with the key in remote JSON
-    expect(sync.put).toHaveBeenCalledWith(
-      'notes',
-      'r6.json',
-      expect.objectContaining({ imageUrl: 'ghost' }),
-    );
+    expect(sync.put).not.toHaveBeenCalled();
+    expect(settled).toEqual([
+      expect.objectContaining({
+        key: 'r6',
+        kind: 'upload',
+        status: 'rejected',
+        error: expect.any(BlobIntegrityError),
+      }),
+    ]);
   });
 
-  it('handles download when remote blob is absent', async () => {
-    // Remote record references a blob that does not exist remotely
+  it('rejects a download item when its blob is missing on both sides', async () => {
     const store = mockBlobStore();
-    const sync = blobTransport(
-      [{ id: 'r7.json', syncKey: 'r7.json' }],
-      { 'r7.json': { id: 'r7', name: 'Orphan', imageUrl: 'ghost' } },
-      [],
-      {}, // no blob data
-    );
+    const settled: SyncItemSettledEvent[] = [];
+    const sync = blobTransport([{ id: 'r7.json', syncKey: 'r7.json' }], {
+      'r7.json': { id: 'r7', name: 'Orphan', imageUrl: 'ghost' },
+    });
 
     await syncStore<RecipeRecord>(db, sync, 'notes', {
       blobFields: { imageUrl: blobFieldConfig(store) },
+      onItemSettled: (event) => settled.push(event),
     });
 
-    // Field is still rewritten to local URL even though no blob was downloaded
-    const saved = await db.get('notes', 'r7');
-    expect(saved).toMatchObject({ imageUrl: '/_cache/ghost' });
+    expect(await db.get('notes', 'r7')).toBeUndefined();
     expect(vi.mocked(store.put)).not.toHaveBeenCalled();
+    expect(settled).toEqual([
+      expect.objectContaining({
+        key: 'r7',
+        kind: 'download',
+        status: 'rejected',
+        error: expect.any(BlobIntegrityError),
+      }),
+    ]);
   });
 
   it('uses identity transforms when keyFromValue and valueFromKey are omitted', async () => {
@@ -617,7 +877,7 @@ describe('syncStore – array blobFields', () => {
     const sync = blobTransport(
       [{ id: 'p4.json', syncKey: 'p4.json' }],
       { 'p4.json': { id: 'p4', name: 'Curry', photos: remotePhotos } },
-      [],
+      [{ id: 'x1.jpg', syncKey: 'x1.jpg' }],
       { 'x1.jpg': jpegBlob },
     );
 
@@ -683,5 +943,98 @@ describe('syncStore – array blobFields', () => {
     });
 
     expect(sync.putBlob).toHaveBeenCalledTimes(1);
+  });
+
+  it('repairs a missing local blob for an otherwise ignored record', async () => {
+    const modified = new Date('2026-01-01T00:00:00Z');
+    const store = mockBlobStore();
+    const sync = blobTransport(
+      [{ id: 'repair-local.json', syncKey: 'repair-local.json', modified }],
+      {},
+      [{ id: 'repair.jpg', syncKey: 'repair.jpg' }],
+      { 'repair.jpg': jpegBlob },
+    );
+    const settled: SyncItemSettledEvent[] = [];
+
+    await db.put('notes', {
+      id: 'repair-local',
+      name: 'Repair local',
+      modified,
+      photos: [{ key: 'repair.jpg' }],
+    });
+
+    await syncStore<PhotoRecord>(db, sync, 'notes', {
+      blobFields: { photos: photosFieldConfig(store) },
+      onItemSettled: (event) => settled.push(event),
+    });
+
+    expect(vi.mocked(store.put)).toHaveBeenCalledWith('repair.jpg', jpegBlob);
+    expect(sync.put).not.toHaveBeenCalled();
+    expect(settled).toEqual([
+      expect.objectContaining({
+        key: 'repair-local',
+        kind: 'reconcile',
+        status: 'fulfilled',
+      }),
+    ]);
+  });
+
+  it('repairs a missing remote blob for an otherwise ignored record', async () => {
+    const modified = new Date('2026-01-01T00:00:00Z');
+    const store = mockBlobStore(new Map([['repair.jpg', jpegBlob]]));
+    const sync = blobTransport([
+      { id: 'repair-remote.json', syncKey: 'repair-remote.json', modified },
+    ]);
+
+    await db.put('notes', {
+      id: 'repair-remote',
+      name: 'Repair remote',
+      modified,
+      photos: [{ key: 'repair.jpg', contentType: 'image/jpeg' }],
+    });
+
+    await syncStore<PhotoRecord>(db, sync, 'notes', {
+      blobFields: { photos: photosFieldConfig(store) },
+    });
+
+    expect(sync.putBlob).toHaveBeenCalledWith(
+      'notes',
+      'repair.jpg',
+      jpegBlob,
+      'image/jpeg',
+    );
+    expect(sync.put).not.toHaveBeenCalled();
+  });
+
+  it('reports an ignored record whose blob is missing on both sides', async () => {
+    const modified = new Date('2026-01-01T00:00:00Z');
+    const store = mockBlobStore();
+    const sync = blobTransport([
+      { id: 'orphan.json', syncKey: 'orphan.json', modified },
+    ]);
+    const settled: SyncItemSettledEvent[] = [];
+
+    await db.put('notes', {
+      id: 'orphan',
+      name: 'Orphan',
+      modified,
+      photos: [{ key: 'ghost.jpg' }],
+    });
+
+    await syncStore<PhotoRecord>(db, sync, 'notes', {
+      blobFields: { photos: photosFieldConfig(store) },
+      onItemSettled: (event) => settled.push(event),
+    });
+
+    expect(settled).toEqual([
+      expect.objectContaining({
+        key: 'orphan',
+        kind: 'reconcile',
+        status: 'rejected',
+        error: expect.any(BlobIntegrityError),
+      }),
+    ]);
+    expect(sync.put).not.toHaveBeenCalled();
+    expect(sync.putBlob).not.toHaveBeenCalled();
   });
 });

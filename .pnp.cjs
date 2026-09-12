@@ -28,15 +28,11 @@ const RAW_RUNTIME_STATE =
       [null, {\
         "packageLocation": "./",\
         "packageDependencies": [\
-          ["@azure/msal-browser", "npm:5.11.0"],\
           ["@changesets/cli", "npm:2.31.0"],\
           ["@commitlint/cli", "npm:21.0.2"],\
           ["@commitlint/config-conventional", "npm:21.0.2"],\
           ["@nodable/entities", "npm:2.1.1"],\
           ["@rcarls/idb-free-sync", "workspace:."],\
-          ["@types/gapi", "npm:0.0.47"],\
-          ["@types/gapi.client.drive-v3", "npm:0.0.5"],\
-          ["@types/google.accounts", "npm:0.0.18"],\
           ["@types/node", "npm:25.9.2"],\
           ["@types/node-fetch", "npm:2.6.13"],\
           ["@vitest/coverage-v8", "virtual:63dbecd929e732ff1c41c6b0a2eb69688651c034a6f9087b13279d5d4db25d8423d79f0c08b2016709e32e4acd89219ede1750dfa77c00e38ae975f6453913e0#npm:4.1.8"],\
@@ -54,25 +50,6 @@ const RAW_RUNTIME_STATE =
           ["webdav", "npm:5.10.0"]\
         ],\
         "linkType": "SOFT"\
-      }]\
-    ]],\
-    ["@azure/msal-browser", [\
-      ["npm:5.11.0", {\
-        "packageLocation": "../../../.yarn/berry/cache/@azure-msal-browser-npm-5.11.0-5937c6f04e-10c0.zip/node_modules/@azure/msal-browser/",\
-        "packageDependencies": [\
-          ["@azure/msal-browser", "npm:5.11.0"],\
-          ["@azure/msal-common", "npm:16.6.2"]\
-        ],\
-        "linkType": "HARD"\
-      }]\
-    ]],\
-    ["@azure/msal-common", [\
-      ["npm:16.6.2", {\
-        "packageLocation": "../../../.yarn/berry/cache/@azure-msal-common-npm-16.6.2-cf5a81be08-10c0.zip/node_modules/@azure/msal-common/",\
-        "packageDependencies": [\
-          ["@azure/msal-common", "npm:16.6.2"]\
-        ],\
-        "linkType": "HARD"\
       }]\
     ]],\
     ["@babel/code-frame", [\
@@ -1045,28 +1022,6 @@ const RAW_RUNTIME_STATE =
         "linkType": "HARD"\
       }]\
     ]],\
-    ["@maxim_mazurok/gapi.client.discovery-v1", [\
-      ["npm:0.5.20200806", {\
-        "packageLocation": "../../../.yarn/berry/cache/@maxim_mazurok-gapi.client.discovery-v1-npm-0.5.20200806-93eca5b69e-10c0.zip/node_modules/@maxim_mazurok/gapi.client.discovery-v1/",\
-        "packageDependencies": [\
-          ["@maxim_mazurok/gapi.client.discovery-v1", "npm:0.5.20200806"],\
-          ["@types/gapi.client", "npm:1.0.8"],\
-          ["@types/gapi.client.discovery-v1", "npm:0.0.4"]\
-        ],\
-        "linkType": "HARD"\
-      }]\
-    ]],\
-    ["@maxim_mazurok/gapi.client.drive-v3", [\
-      ["npm:0.2.20260311", {\
-        "packageLocation": "../../../.yarn/berry/cache/@maxim_mazurok-gapi.client.drive-v3-npm-0.2.20260311-9688f47ee0-10c0.zip/node_modules/@maxim_mazurok/gapi.client.drive-v3/",\
-        "packageDependencies": [\
-          ["@maxim_mazurok/gapi.client.drive-v3", "npm:0.2.20260311"],\
-          ["@types/gapi.client", "npm:1.0.8"],\
-          ["@types/gapi.client.discovery-v1", "npm:0.0.4"]\
-        ],\
-        "linkType": "HARD"\
-      }]\
-    ]],\
     ["@microsoft/api-extractor", [\
       ["npm:7.58.7", {\
         "packageLocation": "../../../.yarn/berry/cache/@microsoft-api-extractor-npm-7.58.7-ab6f341a0a-10c0.zip/node_modules/@microsoft/api-extractor/",\
@@ -1218,15 +1173,11 @@ const RAW_RUNTIME_STATE =
       ["workspace:.", {\
         "packageLocation": "./",\
         "packageDependencies": [\
-          ["@azure/msal-browser", "npm:5.11.0"],\
           ["@changesets/cli", "npm:2.31.0"],\
           ["@commitlint/cli", "npm:21.0.2"],\
           ["@commitlint/config-conventional", "npm:21.0.2"],\
           ["@nodable/entities", "npm:2.1.1"],\
           ["@rcarls/idb-free-sync", "workspace:."],\
-          ["@types/gapi", "npm:0.0.47"],\
-          ["@types/gapi.client.drive-v3", "npm:0.0.5"],\
-          ["@types/google.accounts", "npm:0.0.18"],\
           ["@types/node", "npm:25.9.2"],\
           ["@types/node-fetch", "npm:2.6.13"],\
           ["@vitest/coverage-v8", "virtual:63dbecd929e732ff1c41c6b0a2eb69688651c034a6f9087b13279d5d4db25d8423d79f0c08b2016709e32e4acd89219ede1750dfa77c00e38ae975f6453913e0#npm:4.1.8"],\
@@ -1653,53 +1604,6 @@ const RAW_RUNTIME_STATE =
         "packageLocation": "../../../.yarn/berry/cache/@types-estree-npm-1.0.9-63428f58ff-10c0.zip/node_modules/@types/estree/",\
         "packageDependencies": [\
           ["@types/estree", "npm:1.0.9"]\
-        ],\
-        "linkType": "HARD"\
-      }]\
-    ]],\
-    ["@types/gapi", [\
-      ["npm:0.0.47", {\
-        "packageLocation": "../../../.yarn/berry/cache/@types-gapi-npm-0.0.47-e25311ceb0-10c0.zip/node_modules/@types/gapi/",\
-        "packageDependencies": [\
-          ["@types/gapi", "npm:0.0.47"]\
-        ],\
-        "linkType": "HARD"\
-      }]\
-    ]],\
-    ["@types/gapi.client", [\
-      ["npm:1.0.8", {\
-        "packageLocation": "../../../.yarn/berry/cache/@types-gapi.client-npm-1.0.8-40175e07e7-10c0.zip/node_modules/@types/gapi.client/",\
-        "packageDependencies": [\
-          ["@types/gapi.client", "npm:1.0.8"]\
-        ],\
-        "linkType": "HARD"\
-      }]\
-    ]],\
-    ["@types/gapi.client.discovery-v1", [\
-      ["npm:0.0.4", {\
-        "packageLocation": "../../../.yarn/berry/cache/@types-gapi.client.discovery-v1-npm-0.0.4-da690f7335-10c0.zip/node_modules/@types/gapi.client.discovery-v1/",\
-        "packageDependencies": [\
-          ["@maxim_mazurok/gapi.client.discovery-v1", "npm:0.5.20200806"],\
-          ["@types/gapi.client.discovery-v1", "npm:0.0.4"]\
-        ],\
-        "linkType": "HARD"\
-      }]\
-    ]],\
-    ["@types/gapi.client.drive-v3", [\
-      ["npm:0.0.5", {\
-        "packageLocation": "../../../.yarn/berry/cache/@types-gapi.client.drive-v3-npm-0.0.5-f00534868b-10c0.zip/node_modules/@types/gapi.client.drive-v3/",\
-        "packageDependencies": [\
-          ["@maxim_mazurok/gapi.client.drive-v3", "npm:0.2.20260311"],\
-          ["@types/gapi.client.drive-v3", "npm:0.0.5"]\
-        ],\
-        "linkType": "HARD"\
-      }]\
-    ]],\
-    ["@types/google.accounts", [\
-      ["npm:0.0.18", {\
-        "packageLocation": "../../../.yarn/berry/cache/@types-google.accounts-npm-0.0.18-cab73e6d0a-10c0.zip/node_modules/@types/google.accounts/",\
-        "packageDependencies": [\
-          ["@types/google.accounts", "npm:0.0.18"]\
         ],\
         "linkType": "HARD"\
       }]\

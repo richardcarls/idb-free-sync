@@ -1,0 +1,7 @@
+{
+  "$schema": "https://raw.githubusercontent.com/DavidAnson/markdownlint-cli2/v0.23.0/schema/markdownlint-cli2-config-schema.json",
+  "config": {
+    // Changeset summaries become changelog list items, not standalone documents.
+    "MD041": false,
+  },
+}
