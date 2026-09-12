@@ -26,6 +26,9 @@ export class OneDriveTransport implements BlobSyncTransport {
    */
   constructor(private readonly tokenProvider: TokenProvider) {}
 
+  // Cache in-flight creation to close the concurrent check-then-create race.
+  private readonly ensureDirectoryPromises = new Map<string, Promise<void>>();
+
   async list(storeName: string): Promise<SyncFileInfo[]> {
     const token = await this.tokenProvider();
     const url = `${GRAPH_BASE}/me/drive/special/approot:/${storeName}:/children?$select=id,name,lastModifiedDateTime,createdDateTime,size,file`;
@@ -260,10 +263,25 @@ export class OneDriveTransport implements BlobSyncTransport {
     });
   }
 
-  private async ensureDirectory(name: string, token: string): Promise<void> {
+  private ensureDirectory(name: string, token: string): Promise<void> {
+    let promise = this.ensureDirectoryPromises.get(name);
+
+    if (!promise) {
+      promise = this.createDirectory(name, token).catch((error: unknown) => {
+        this.ensureDirectoryPromises.delete(name);
+
+        throw error;
+      });
+      this.ensureDirectoryPromises.set(name, promise);
+    }
+
+    return promise;
+  }
+
+  private async createDirectory(name: string, token: string): Promise<void> {
     const url = `${GRAPH_BASE}/me/drive/special/approot/children`;
 
-    await request(url, {
+    const response = await request(url, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${token}`,
@@ -272,11 +290,14 @@ export class OneDriveTransport implements BlobSyncTransport {
       body: JSON.stringify({
         name,
         folder: {},
-        '@microsoft.graph.conflictBehavior': 'rename',
+        // Prevent concurrent creates from producing renamed duplicates.
+        '@microsoft.graph.conflictBehavior': 'fail',
       }),
     });
 
-    // Ignore 409 conflicts (directory already exists)
+    if (!response.ok && response.status !== 409) {
+      throw new Error(`OneDrive ensure directory failed: ${response.status}`);
+    }
   }
 
   private async getFileId(
