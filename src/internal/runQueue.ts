@@ -11,15 +11,28 @@
  * already-started work finish but starts nothing further. Skipped items
  * (never started because of an abort) are reported as a rejected
  * `AbortError`, keeping every input item represented in the output.
+ * `onSettled` runs as each started item finishes; observer errors are logged
+ * without changing the queue result or stopping another lane.
  */
 export async function runQueue<T>(
   items: readonly T[],
   concurrency: number,
   worker: (item: T) => Promise<void>,
   signal?: AbortSignal,
+  onSettled?: (item: T, result: PromiseSettledResult<void>) => void,
 ): Promise<PromiseSettledResult<void>[]> {
   const results: PromiseSettledResult<void>[] = new Array(items.length);
   let nextIndex = 0;
+
+  function settle(index: number, result: PromiseSettledResult<void>): void {
+    results[index] = result;
+
+    try {
+      onSettled?.(items[index] as T, result);
+    } catch (error) {
+      console.error(error);
+    }
+  }
 
   async function runLane(): Promise<void> {
     for (;;) {
@@ -35,9 +48,9 @@ export async function runQueue<T>(
 
       try {
         await worker(items[index] as T);
-        results[index] = { status: 'fulfilled', value: undefined };
+        settle(index, { status: 'fulfilled', value: undefined });
       } catch (error) {
-        results[index] = { status: 'rejected', reason: error };
+        settle(index, { status: 'rejected', reason: error });
       }
     }
   }
@@ -47,10 +60,12 @@ export async function runQueue<T>(
   await Promise.all(Array.from({ length: laneCount }, () => runLane()));
 
   for (let i = 0; i < items.length; i++) {
-    results[i] ??= {
-      status: 'rejected',
-      reason: new DOMException('Aborted', 'AbortError'),
-    };
+    if (!results[i]) {
+      settle(i, {
+        status: 'rejected',
+        reason: new DOMException('Aborted', 'AbortError'),
+      });
+    }
   }
 
   return results;
