@@ -246,8 +246,16 @@ export interface SyncOptions<T extends SyncRecord = SyncRecord> {
   /** Fires immediately before each local IDB write this run performs. */
   onBeforeWrite?: (event: SyncWriteEvent<T>) => void;
 
-  /** Fires once for each planned queue item, including cancelled items. */
+  /** Fires as each planned queue item settles, including cancelled items. */
   onItemSettled?: (event: SyncItemSettledEvent) => void;
+
+  /**
+   * Fires after the local scan with the number of queued operations.
+   * Use this total with {@link onItemSettled} for visible progress because
+   * the IndexedDB scan cannot yield for rendering without closing its
+   * transaction.
+   */
+  onQueueBuilt?: (total: number) => void;
 }
 
 /**
@@ -744,7 +752,9 @@ export async function syncStore<T extends SyncRecord>(
     ...reconcileQueue.map((uuid): QueueItem => ({ kind: 'reconcile', uuid })),
   ];
 
-  const results = await runQueue(
+  options?.onQueueBuilt?.(queueItems.length);
+
+  await runQueue(
     queueItems,
     QUEUE_CONCURRENCY,
     async (item) => {
@@ -837,24 +847,17 @@ export async function syncStore<T extends SyncRecord>(
       await transport.delete(storeName, keyToSyncKey(item.uuid), true);
     },
     signal,
-  );
+    (item, result) => {
+      if (result.status === 'rejected') {
+        console.error(result.reason);
+      }
 
-  for (const [index, result] of results.entries()) {
-    const item = queueItems[index] as QueueItem;
-
-    if (result.status === 'rejected') {
-      console.error(result.reason);
-    }
-
-    try {
       options?.onItemSettled?.({
         key: item.uuid,
         kind: item.kind,
         status: result.status,
         ...(result.status === 'rejected' && { error: result.reason }),
       });
-    } catch (error) {
-      console.error(error);
-    }
-  }
+    },
+  );
 }

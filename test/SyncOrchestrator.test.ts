@@ -43,6 +43,7 @@ function transport(
   const get = vi.fn((_store: string, key: string) =>
     Promise.resolve(values[key]),
   );
+
   return {
     provider: 'test',
     scopes: [],
@@ -64,6 +65,7 @@ function blobTransport(
   const get = vi.fn((_store: string, key: string) =>
     Promise.resolve(recordValues[key]),
   );
+
   return {
     provider: 'blob-test',
     scopes: [],
@@ -87,10 +89,12 @@ function mockBlobStore(localBlobs: Map<string, Blob> = new Map()): BlobStore {
     get: vi.fn((key: string) => Promise.resolve(localBlobs.get(key))),
     put: vi.fn((key: string, blob: Blob) => {
       localBlobs.set(key, blob);
+
       return Promise.resolve();
     }),
     delete: vi.fn((key: string) => {
       localBlobs.delete(key);
+
       return Promise.resolve();
     }),
     list: vi.fn(() => Promise.resolve([...localBlobs.keys()])),
@@ -104,6 +108,7 @@ beforeEach(async () => {
       database.createObjectStore('notes', { keyPath: 'id' });
     },
   });
+
   vi.spyOn(console, 'log').mockImplementation(() => {});
   vi.spyOn(console, 'error').mockImplementation(() => {});
 });
@@ -132,6 +137,7 @@ describe('defaultResolve', () => {
 describe('syncStore', () => {
   it('uploads local-only records and downloads remote-only records', async () => {
     await db.put('notes', { id: 'local', title: 'Local' });
+
     const remote = { id: 'remote', title: 'Remote' };
     const sync = transport([{ id: 'remote.json', syncKey: 'remote.json' }], {
       'remote.json': remote,
@@ -144,6 +150,7 @@ describe('syncStore', () => {
       'local.json',
       expect.objectContaining({ id: 'local' }),
     );
+
     expect(await db.get('notes', 'remote')).toEqual(remote);
   });
 
@@ -151,6 +158,7 @@ describe('syncStore', () => {
     for (const id of ['remote', 'local', 'delete', 'ignore']) {
       await db.put('notes', { id, title: id });
     }
+
     const files = ['remote', 'local', 'delete', 'ignore'].map((id) => ({
       id: `${id}.json`,
       syncKey: `${id}.json`,
@@ -172,11 +180,13 @@ describe('syncStore', () => {
     });
 
     expect(await db.get('notes', 'remote')).toMatchObject({ title: 'updated' });
+
     expect(sync.put).toHaveBeenCalledWith(
       'notes',
       'local.json',
       expect.anything(),
     );
+
     expect(sync.delete).toHaveBeenCalledWith('notes', 'delete.json', true);
     expect(await db.get('notes', 'delete')).toBeUndefined();
     expect(sync.get).not.toHaveBeenCalledWith('notes', 'ignore.json');
@@ -185,7 +195,9 @@ describe('syncStore', () => {
   it('uses modifiedField for conflict resolution', async () => {
     const now = new Date('2026-01-02T00:00:00Z');
     const earlier = new Date('2026-01-01T00:00:00Z');
+
     await db.put('notes', { id: 'a', title: 'Local', updatedAt: now });
+
     const sync = transport(
       [{ id: 'a.json', syncKey: 'a.json', modified: earlier }],
       { 'a.json': { id: 'a', title: 'Remote', updatedAt: earlier } },
@@ -205,7 +217,9 @@ describe('syncStore', () => {
   it('uses modifiedField to keep-remote when remote is newer', async () => {
     const now = new Date('2026-01-02T00:00:00Z');
     const earlier = new Date('2026-01-01T00:00:00Z');
+
     await db.put('notes', { id: 'c', title: 'Local', updatedAt: earlier });
+
     const sync = transport(
       [{ id: 'c.json', syncKey: 'c.json', modified: now }],
       { 'c.json': { id: 'c', title: 'Remote', updatedAt: now } },
@@ -220,6 +234,7 @@ describe('syncStore', () => {
 
   it('uses modifiedField to delete when remote is soft-deleted', async () => {
     await db.put('notes', { id: 'd', title: 'Local' });
+
     const sync = transport(
       [{ id: 'd.json', syncKey: 'd.json', deleted: true }],
       {},
@@ -235,7 +250,9 @@ describe('syncStore', () => {
   it('ignores modifiedField when a custom resolve is provided', async () => {
     const now = new Date('2026-01-02T00:00:00Z');
     const earlier = new Date('2026-01-01T00:00:00Z');
+
     await db.put('notes', { id: 'b', title: 'Local', updatedAt: now });
+
     const sync = transport(
       [{ id: 'b.json', syncKey: 'b.json', modified: earlier }],
       { 'b.json': { id: 'b', title: 'Remote', updatedAt: earlier } },
@@ -434,6 +451,7 @@ describe('syncStore – onBeforeWrite', () => {
       kind: 'put',
       previous: undefined,
     });
+
     expect(byKey.has('uploaded')).toBe(false);
   });
 
@@ -461,6 +479,52 @@ describe('syncStore – onBeforeWrite', () => {
 });
 
 describe('syncStore – onItemSettled', () => {
+  it('reports completed items while later queue work is still pending', async () => {
+    await db.put('notes', { id: 'a', title: 'A' });
+    await db.put('notes', { id: 'b', title: 'B' });
+
+    const sync = transport();
+    let releaseSecondUpload!: () => void;
+    const secondUpload = new Promise<void>((resolve) => {
+      releaseSecondUpload = resolve;
+    });
+
+    vi.mocked(sync.put).mockImplementation(async (_store, key) => {
+      if (key === 'b.json') {
+        await secondUpload;
+      }
+
+      return { id: key, syncKey: key };
+    });
+
+    const events: SyncItemSettledEvent[] = [];
+    let finished = false;
+    const run = syncStore<NoteRecord>(db, sync, 'notes', {
+      onItemSettled: (event) => {
+        events.push(event);
+      },
+    }).then(() => {
+      finished = true;
+    });
+
+    await vi.waitFor(() => expect(sync.put).toHaveBeenCalledTimes(2));
+
+    await vi.waitFor(() =>
+      expect(events).toContainEqual({
+        key: 'a',
+        kind: 'upload',
+        status: 'fulfilled',
+      }),
+    );
+
+    expect(finished).toBe(false);
+
+    releaseSecondUpload();
+    await run;
+
+    expect(events).toHaveLength(2);
+  });
+
   it('fires once per queue item with the outcome, surfacing the caught error on failure', async () => {
     await db.put('notes', { id: 'upload-ok', title: 'Upload ok' });
     await db.put('notes', { id: 'delete-ok', title: 'Delete ok' });
@@ -563,9 +627,52 @@ describe('syncStore – onItemSettled', () => {
 
     expect(events).toHaveLength(2);
     expect(events.every(({ status }) => status === 'fulfilled')).toBe(true);
+
     expect(console.error).toHaveBeenCalledWith(
       expect.objectContaining({ message: 'observer failed' }),
     );
+  });
+});
+
+describe('syncStore – onQueueBuilt', () => {
+  it('fires once with the queue size, before any item settles', async () => {
+    await db.put('notes', { id: 'upload-me', title: 'Upload me' });
+
+    const sync = transport([
+      { id: 'download-me.json', syncKey: 'download-me.json' },
+    ]);
+    const calls: number[] = [];
+    const settledBeforeQueueBuilt: boolean[] = [];
+
+    await syncStore<NoteRecord>(db, sync, 'notes', {
+      resolve: () => 'keep-local',
+      onQueueBuilt: (total) => {
+        calls.push(total);
+        settledBeforeQueueBuilt.push(false);
+      },
+      onItemSettled: () => {
+        settledBeforeQueueBuilt.push(true);
+      },
+    });
+
+    expect(calls).toEqual([2]);
+    expect(settledBeforeQueueBuilt[0]).toBe(false);
+  });
+
+  it('reports zero when every record is already in sync', async () => {
+    await db.put('notes', { id: 'already-synced', title: 'Already synced' });
+
+    const sync = transport([
+      { id: 'already-synced.json', syncKey: 'already-synced.json' },
+    ]);
+    const calls: number[] = [];
+
+    await syncStore<NoteRecord>(db, sync, 'notes', {
+      resolve: () => 'ignore',
+      onQueueBuilt: (total) => calls.push(total),
+    });
+
+    expect(calls).toEqual([0]);
   });
 });
 
@@ -652,6 +759,7 @@ describe('syncStore – blobFields', () => {
     });
 
     const saved = await db.get('notes', 'r3');
+
     expect(saved).toMatchObject({ imageUrl: '/_cache/abc123' });
     expect(vi.mocked(store.put)).toHaveBeenCalledWith('abc123', imageBlob);
   });
@@ -706,6 +814,7 @@ describe('syncStore – blobFields', () => {
 
     expect(sync.putBlob).not.toHaveBeenCalled();
     expect(sync.put).not.toHaveBeenCalled();
+
     expect(settled).toEqual([
       expect.objectContaining({
         key: 'r6',
@@ -730,6 +839,7 @@ describe('syncStore – blobFields', () => {
 
     expect(await db.get('notes', 'r7')).toBeUndefined();
     expect(vi.mocked(store.put)).not.toHaveBeenCalled();
+
     expect(settled).toEqual([
       expect.objectContaining({
         key: 'r7',
@@ -806,6 +916,7 @@ describe('syncStore – array blobFields', () => {
       jpegBlob,
       'image/jpeg',
     );
+
     expect(sync.putBlob).toHaveBeenCalledWith(
       'notes',
       'b2.webp',
@@ -839,6 +950,7 @@ describe('syncStore – array blobFields', () => {
     });
 
     expect(sync.putBlob).toHaveBeenCalledTimes(1);
+
     expect(sync.putBlob).toHaveBeenCalledWith(
       'notes',
       'local.jpg',
@@ -887,6 +999,7 @@ describe('syncStore – array blobFields', () => {
 
     expect(vi.mocked(store.put)).toHaveBeenCalledWith('x1.jpg', jpegBlob);
     expect(vi.mocked(store.put)).toHaveBeenCalledTimes(1);
+
     expect(await db.get('notes', 'p4')).toMatchObject({
       photos: remotePhotos,
     });
@@ -932,6 +1045,7 @@ describe('syncStore – array blobFields', () => {
       name: 'One',
       photos: [{ key: 'shared.jpg' }],
     });
+
     await db.put('notes', {
       id: 'p8',
       name: 'Two',
@@ -970,6 +1084,7 @@ describe('syncStore – array blobFields', () => {
 
     expect(vi.mocked(store.put)).toHaveBeenCalledWith('repair.jpg', jpegBlob);
     expect(sync.put).not.toHaveBeenCalled();
+
     expect(settled).toEqual([
       expect.objectContaining({
         key: 'repair-local',
@@ -1003,6 +1118,7 @@ describe('syncStore – array blobFields', () => {
       jpegBlob,
       'image/jpeg',
     );
+
     expect(sync.put).not.toHaveBeenCalled();
   });
 
@@ -1034,6 +1150,7 @@ describe('syncStore – array blobFields', () => {
         error: expect.any(BlobIntegrityError),
       }),
     ]);
+
     expect(sync.put).not.toHaveBeenCalled();
     expect(sync.putBlob).not.toHaveBeenCalled();
   });

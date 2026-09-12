@@ -102,6 +102,32 @@ type ConflictResolution = 'keep-local' | 'keep-remote' | 'delete' | 'ignore';
 operations run in parallel. Individual queue failures are logged rather than
 causing `syncStore` to reject.
 
+## Tracking Progress
+
+Use `onQueueBuilt` to initialize progress after the local scan determines the
+number of queued operations. `onItemSettled` then fires as each operation
+finishes, including canceled and failed operations:
+
+```ts
+let completed = 0;
+let total = 0;
+
+await syncStore(db, transport, 'notes', {
+  onQueueBuilt(queueTotal) {
+    total = queueTotal;
+    completed = 0;
+    renderProgress({ completed: 0, total });
+  },
+  onItemSettled() {
+    completed += 1;
+    renderProgress({ completed, total });
+  },
+});
+```
+
+The local IndexedDB scan completes before `onQueueBuilt` fires and is not
+included in the reported total.
+
 ## Soft Deletes
 
 Cloud transports support soft deletion by rewriting a remote JSON object with
