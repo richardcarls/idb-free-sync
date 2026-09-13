@@ -154,9 +154,103 @@ describe('OneDriveTransport', () => {
     );
 
     expect(result).toMatchObject({ id: '1', syncKey: 'a.json' });
+
     expectSyncFileInfo(result, 'a.json');
-    expect(await requests[0].json()).toMatchObject({ name: 'notes' });
+
+    expect(await requests[0].json()).toMatchObject({
+      name: 'notes',
+      '@microsoft.graph.conflictBehavior': 'fail',
+    });
+
     expect(await requests[1].json()).toEqual({ id: 'a' });
+  });
+
+  it('ensures a directory at most once per store, across many puts', async () => {
+    let ensureDirectoryCalls = 0;
+
+    server.use(
+      http.post(endpoint('/me/drive/special/approot/children'), () => {
+        ensureDirectoryCalls += 1;
+
+        return HttpResponse.json({});
+      }),
+
+      http.put(
+        endpoint('/me/drive/special/approot:/notes/a.json:/content'),
+        () => HttpResponse.json(item),
+      ),
+
+      http.put(
+        endpoint('/me/drive/special/approot:/notes-blobs/img.jpg:/content'),
+        () => HttpResponse.json({ ...item, name: 'img.jpg' }),
+      ),
+    );
+
+    const transport = new OneDriveTransport(tokenProvider);
+
+    await transport.put('notes', 'a.json', { id: 'a' });
+    await transport.put('notes', 'a.json', { id: 'a' });
+    await transport.putBlob('notes', 'img.jpg', new Blob(['img']));
+
+    expect(ensureDirectoryCalls).toBe(2);
+  });
+
+  it('ensures a directory once even when concurrent puts race the same store', async () => {
+    let ensureDirectoryCalls = 0;
+
+    server.use(
+      http.post(endpoint('/me/drive/special/approot/children'), () => {
+        ensureDirectoryCalls += 1;
+
+        return HttpResponse.json({});
+      }),
+
+      http.put(
+        /^https:\/\/graph\.microsoft\.com\/v1\.0\/me\/drive\/special\/approot:\/notes\/.+:\/content$/,
+        () => HttpResponse.json(item),
+      ),
+    );
+
+    const transport = new OneDriveTransport(tokenProvider);
+
+    await Promise.all(
+      ['a.json', 'b.json', 'c.json', 'd.json', 'e.json', 'f.json'].map((key) =>
+        transport.put('notes', key, { id: key }),
+      ),
+    );
+
+    expect(ensureDirectoryCalls).toBe(1);
+  });
+
+  it('retries directory creation after a failed request', async () => {
+    let ensureDirectoryCalls = 0;
+
+    server.use(
+      http.post(endpoint('/me/drive/special/approot/children'), () => {
+        ensureDirectoryCalls += 1;
+
+        return ensureDirectoryCalls === 1
+          ? new HttpResponse(null, { status: 500 })
+          : new HttpResponse(null, { status: 409 });
+      }),
+
+      http.put(
+        endpoint('/me/drive/special/approot:/notes/a.json:/content'),
+        () => HttpResponse.json(item),
+      ),
+    );
+
+    const transport = new OneDriveTransport(tokenProvider);
+
+    await expect(transport.put('notes', 'a.json', {})).rejects.toThrow(
+      'ensure directory failed: 500',
+    );
+
+    await expect(transport.put('notes', 'a.json', {})).resolves.toMatchObject({
+      syncKey: 'a.json',
+    });
+
+    expect(ensureDirectoryCalls).toBe(2);
   });
 
   it('soft deletes and hard deletes records and stores', async () => {
