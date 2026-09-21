@@ -1,5 +1,21 @@
 # @rcarls/idb-free-sync
 
+## 0.10.0
+
+### Minor Changes
+
+- 68e8924: Add `onQueueBuilt` for reporting the number of queued operations and notify
+  `onItemSettled` observers as each operation finishes.
+
+### Patch Changes
+
+- fa67c9c: Fix Dropbox sync reliability: bind fetch to avoid an illegal-invocation
+  error, stop doubling the app-folder path for App-folder-scoped access
+  tokens, and back off automatically on rate-limit (429) responses instead
+  of failing outright.
+- df4e366: Ensure each OneDrive store directory once per transport, retry failed checks,
+  and prevent concurrent creation from producing renamed duplicate folders.
+
 ## 0.9.0
 
 ### Minor Changes
