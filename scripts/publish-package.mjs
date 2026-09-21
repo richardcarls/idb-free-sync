@@ -31,7 +31,10 @@ import {
 const MINIMUM_NPM_VERSION = '11.5.1';
 const PROVENANCE_PREDICATE = 'https://slsa.dev/provenance/v1';
 const REGISTRY_FIELDS = ['name', 'version', 'repository', 'dist.attestations'];
-const DEFAULT_POLL_ATTEMPTS = 12;
+// npm can expose a new version before its provenance metadata finishes
+// propagating. Its publish output warns that processing may take a few
+// minutes, so keep verification bounded while allowing that delay.
+const DEFAULT_POLL_ATTEMPTS = 60;
 const DEFAULT_POLL_DELAY_MS = 5_000;
 
 function sleep(milliseconds) {
@@ -419,6 +422,7 @@ export async function executePublication({
       packageName,
       version,
     });
+
     log.log(`validated packed artifact: ${packageName}@${version}`);
 
     return { state: 'validated' };
@@ -448,6 +452,7 @@ export async function executePublication({
     packageName,
     version,
   });
+
   log.log(`publishing with npm OIDC: ${packageName}@${version}`);
 
   try {
