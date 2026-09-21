@@ -5,9 +5,10 @@ import { type BlobSyncTransport } from './BlobSyncTransport';
 import { type TokenProvider } from './TokenProvider';
 import { createDropboxClient } from './internal/dropboxAdapter';
 
-const APP_PATH = '/Apps/RecipeTome';
+// App-folder tokens already root requests at /Apps/RecipeTome.
+const APP_PATH = '';
 
-/** Syncs to Dropbox under `/Apps/RecipeTome` via the Dropbox SDK. */
+/** Syncs to Dropbox under its sandboxed App folder via the Dropbox SDK. */
 export class DropboxTransport implements BlobSyncTransport {
   readonly provider = 'dropbox';
   readonly scopes: string[] = [];
